@@ -369,7 +369,7 @@ class Register extends React.Component {
                         {/* Botón de Google */}
                         <div style={{ marginTop: 20, width: '100%', display: 'flex', justifyContent: 'center' }}>
                             <GoogleLogin
-                                clientId="TU_CLIENT_ID_DE_GOOGLE"
+                                clientId="333024406750-iqtq85ch9drl7mola42a7192vfcm868d.apps.googleusercontent.com"
                                 buttonText="Continue with Google"
                                 onSuccess={this.handleGoogleSuccess}
                                 onFailure={this.handleGoogleFailure}

@@ -70,7 +70,7 @@ class BushEncroacher extends React.Component {
 
     fetchAssets = async () => {
         try {
-            const response = await fetch('http://localhost:5004/api/list-assets');
+            const response = await fetch('https://gobiolivar.evenor-tech.com/api/list-assets');
             const data = await response.json();
             const assets = data.assets;
 
@@ -163,7 +163,7 @@ class BushEncroacher extends React.Component {
 
     fetchMapUrl = async (assetId, assetType) => {
         try {
-            const response = await fetch('http://localhost:5004/api/get-map-url', {
+            const response = await fetch('https://gobiolivar.evenor-tech.com/api/get-map-url', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

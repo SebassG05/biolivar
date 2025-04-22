@@ -203,7 +203,7 @@ export default function ControlledAccordions({onSubmit}) {
       
       console.log(data);
 
-      const response = await fetch('http://localhost:5004/api/rusle', {
+      const response = await fetch('https://gobiolivar.evenor-tech.com/api/rusle', {
          method: 'POST',
          body: data
       });

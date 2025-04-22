@@ -1,5 +1,3 @@
-/* Written by Ye Liu */
-
 import React from 'react';
 import { SnackbarProvider } from 'notistack';
 
@@ -24,29 +22,41 @@ import VegInspectorController from '../components/controllers/vegInspectorContro
 import SpatioTemporalAnalysisController from '../components/controllers/spatioTemporalAnalysisController';
 import BandController from '../components/controllers/bandContoller';
 import BiodiversityController from '../components/controllers/biodiversityController';
+import Register from '@components/register'; 
 
 class Main extends React.Component {
+    state = {
+        showRegister: true, 
+    };
+
+    handleRegisterClose = () => {
+        this.setState({ showRegister: false }); 
+    };
+
     render() {
         return (
             <SnackbarProvider maxSnack={3}>
                 <React.Fragment>
+                    {this.state.showRegister && (
+                        <Register onRegisterComplete={this.handleRegisterClose} />
+                    )}
                     <Snackbar />
                     <About />
                     <Navigator />
                     <Menu />
                     <Login />
                     <Feature />
-                    <BushEncroacher/>
-                    <BandController/>
-                    <SearchController/>
-                    <SpatioTemporalAnalysisController/>
-                    <BiodiversityController/>
-                    <VegInspectorController/>
+                    <BushEncroacher />
+                    <BandController />
+                    <SearchController />
+                    <SpatioTemporalAnalysisController />
+                    <BiodiversityController />
+                    <VegInspectorController />
                     <StyleController />
                     <LayerController />
                     <ModelController />
-                    <DataController/>
-                    <ImportController/>
+                    <DataController />
+                    <ImportController />
                     <RusleController />
                     <Popup />
                     <Canvas />

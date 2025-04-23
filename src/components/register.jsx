@@ -38,89 +38,56 @@ class Register extends React.Component {
         this.setState({ [e.target.name]: e.target.value });
     };
 
+    // En el componente Register.jsx
     handleSubmit = async () => {
         const { username, email, password, mode } = this.state;
-    
-        
-        if (mode === 'register') {
-            if (!username) {
-                this.setState({
-                    snackbarOpen: true,
-                    snackbarMessage: 'Username is required.',
-                    snackbarSeverity: 'error',
-                });
-                return;
-            }
-    
-            const emailError = validateEmail(email);
-            if (emailError) {
-                this.setState({
-                    snackbarOpen: true,
-                    snackbarMessage: emailError,
-                    snackbarSeverity: 'error',
-                });
-                return;
-            }
-    
-            const passwordError = validatePassword(password);
-            if (passwordError) {
-                this.setState({
-                    snackbarOpen: true,
-                    snackbarMessage: passwordError,
-                    snackbarSeverity: 'error',
-                });
-                return;
-            }
-        }
-    
-       
-        if (mode === 'login') {
-            if (!username) {
-                this.setState({
-                    snackbarOpen: true,
-                    snackbarMessage: 'Username is required.',
-                    snackbarSeverity: 'error',
-                });
-                return;
-            }
-    
-            const passwordError = validatePassword(password);
-            if (passwordError) {
-                this.setState({
-                    snackbarOpen: true,
-                    snackbarMessage: passwordError,
-                    snackbarSeverity: 'error',
-                });
-                return;
-            }
-    
-    
-            const userExists = await this.checkUserInDatabase(username, password);
-            if (!userExists) {
-                this.setState({
-                    snackbarOpen: true,
-                    snackbarMessage: 'Invalid username or password.',
-                    snackbarSeverity: 'error',
-                });
-                return;
-            }
-        }
-    
-    
+      
+        // Enviar la solicitud de login o registro
         this.setState({ isSubmitting: true });
-        setTimeout(() => {
-            this.setState({
-                snackbarOpen: true,
-                snackbarMessage:
-                    mode === 'register'
-                        ? 'User Registered Successfully!'
-                        : 'Login Successful!',
-                snackbarSeverity: 'success',
-            });
-            this.props.onRegisterComplete(); 
-            this.setState({ isSubmitting: false });
-        }, 2000);
-    };
+      
+        const url = mode === 'register' 
+            ? 'http://localhost:5000/api/auth/register' 
+            : 'http://localhost:5000/api/auth/login'; 
+      
+        const body = mode === 'register' 
+            ? JSON.stringify({ username, email, password })
+            : JSON.stringify({ username, password });
+      
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: body,
+        });
+      
+        const data = await response.json();
+        
+        if (response.ok) {
+          // Si la respuesta es exitosa
+          this.setState({
+            snackbarOpen: true,
+            snackbarMessage: mode === 'register' 
+              ? 'User Registered Successfully! A verification email has been sent.' 
+              : 'Login Successful!',
+            snackbarSeverity: 'success',
+          });
+          this.props.onRegisterComplete(); // Función callback después del login o registro exitoso
+        } else {
+          // Si hay un error (por ejemplo, usuario no existe o credenciales incorrectas)
+          this.setState({
+            snackbarOpen: true,
+            snackbarMessage: data.message || 'An error occurred',
+            snackbarSeverity: 'error',
+          });
+        }
+      
+        this.setState({ isSubmitting: false });
+      };
+      
+      
+  
+    
 
     handleGoogleSuccess = (response) => {
         console.log('Google Login Success:', response.profileObj);

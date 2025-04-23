@@ -4,11 +4,11 @@ import TextField from '@material-ui/core/TextField';
 import Button from '@material-ui/core/Button';
 import CircularProgress from '@material-ui/core/CircularProgress';
 import { MuiThemeProvider, createTheme } from '@material-ui/core/styles';
-import { GoogleLogin } from 'react-google-login'; 
+import { GoogleLogin } from '@react-oauth/google'; // Import the new GoogleLogin component
 import { validateEmail, validatePassword } from '../utils/validator';
 import Snackbar from '@material-ui/core/Snackbar';
 import MuiAlert from '@material-ui/lab/Alert';
-
+import { jwtDecode } from "jwt-decode"; // Corrected import: Use named import
 
 const theme = createTheme({
     palette: {
@@ -124,9 +124,78 @@ class Register extends React.Component {
         }
     };
 
-    handleGoogleSuccess = (response) => {
-        console.log('Google Login Success:', response.profileObj);
-        this.props.onRegisterComplete(); 
+    // New handler for @react-oauth/google success
+    handleGoogleLoginSuccess = async (credentialResponse) => {
+        console.log('Google Login Success (New Library):', credentialResponse);
+        const idToken = credentialResponse.credential;
+
+        if (!idToken) {
+            console.error("No ID token received from Google.");
+            this.setState({
+                snackbarOpen: true,
+                snackbarMessage: 'Google authentication failed: No token received.',
+                snackbarSeverity: 'error',
+            });
+            return;
+        }
+
+        // Optional: Decode for immediate UI info (DO NOT TRUST FOR BACKEND)
+        try {
+            const decoded = jwtDecode(idToken);
+            console.log("Decoded JWT (client-side, for info only):", decoded);
+        } catch (decodeError) {
+            console.error("Error decoding JWT on client:", decodeError);
+        }
+
+        this.setState({ isSubmitting: true });
+
+        try {
+            const backendResponse = await fetch('http://localhost:5000/api/auth/google', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ token: idToken }), // Send the ID token
+            });
+
+            const data = await backendResponse.json();
+
+            if (backendResponse.ok) {
+                this.setState({
+                    snackbarOpen: true,
+                    snackbarMessage: data.message || 'Google Login Successful!',
+                    snackbarSeverity: 'success',
+                    isSubmitting: false,
+                });
+                this.props.onRegisterComplete(); // Close the dialog
+            } else {
+                this.setState({
+                    snackbarOpen: true,
+                    snackbarMessage: data.message || 'Google login failed on the server.',
+                    snackbarSeverity: 'error',
+                    isSubmitting: false,
+                });
+            }
+        } catch (error) {
+            console.error("Error during Google login backend call:", error);
+            this.setState({
+                snackbarOpen: true,
+                snackbarMessage: 'Network error or server unavailable during Google login.',
+                snackbarSeverity: 'error',
+                isSubmitting: false,
+            });
+        }
+    };
+
+    // New handler for @react-oauth/google error
+    handleGoogleLoginError = (error) => {
+        console.error('Google Login Failed (New Library):', error);
+        this.setState({
+            snackbarOpen: true,
+            snackbarMessage: 'Google authentication failed. Please try again.',
+            snackbarSeverity: 'error',
+            isSubmitting: false,
+        });
     };
 
     toggleMode = (mode) => {
@@ -454,12 +523,12 @@ class Register extends React.Component {
                                 </div>
 
                                 <div style={{ marginTop: 20, width: '100%', display: 'flex', justifyContent: 'center' }}>
+                                    {/* Replace old GoogleLogin with the new one */}
                                     <GoogleLogin
-                                        clientId="333024406750-iqtq85ch9drl7mola42a7192vfcm868d.apps.googleusercontent.com"
-                                        buttonText="Continue with Google"
-                                        onSuccess={this.handleGoogleSuccess}
-                                        onFailure={this.handleGoogleFailure}
-                                        cookiePolicy={'single_host_origin'}
+                                        onSuccess={this.handleGoogleLoginSuccess}
+                                        onError={this.handleGoogleLoginError}
+                                        useOneTap // Optional: Enables One Tap sign-in prompt
+                                        disabled={this.state.isSubmitting}
                                     />
                                 </div>
                             </>

@@ -29,8 +29,6 @@ exports.registerUser = async (req, res) => {
     res.status(201).json({ message: 'Usuario registrado con éxito' });
 };
 
-// server/controllers/authController.js
-
 // Login de usuario
 exports.loginUser = async (req, res) => {
     const { username, password } = req.body;
@@ -50,5 +48,41 @@ exports.loginUser = async (req, res) => {
     // Generar un token JWT
     const token = jwt.sign({ userId: user._id }, 'secret_key', { expiresIn: '1h' });
     res.status(200).json({ message: 'Inicio de sesión exitoso', token });
-  };
-  
+};
+
+// Reset Password
+exports.resetPassword = async (req, res) => {
+    const { username, newPassword } = req.body; // Expect username (or email) and new password
+
+    if (!username || !newPassword) {
+        return res.status(400).json({ message: 'Username/Email and new password are required' });
+    }
+
+    try {
+        // Find user by username (case-insensitive) or email
+        const user = await User.findOne({
+            $or: [
+                { username: { $regex: new RegExp(`^${username}$`, 'i') } },
+                { email: { $regex: new RegExp(`^${username}$`, 'i') } } // Allow email as well
+            ]
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Encrypt the new password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        // Update the user's password
+        user.password = hashedPassword;
+        await user.save();
+
+        res.status(200).json({ message: 'Password updated successfully' });
+
+    } catch (error) {
+        console.error("Error resetting password:", error);
+        res.status(500).json({ message: 'Server error during password reset' });
+    }
+};

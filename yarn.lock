@@ -1951,7 +1951,7 @@
   "resolved" "https://registry.npmjs.org/@mapbox/whoots-js/-/whoots-js-3.1.0.tgz"
   "version" "3.1.0"
 
-"@material-ui/core@^4.0.1", "@material-ui/core@^4.1.1":
+"@material-ui/core@^4.0.1", "@material-ui/core@^4.12.4":
   "integrity" "sha512-tr7xekNlM9LjA6pagJmL8QCgZXaubWUwkJnoYcMKd4gw/t4XiyvnTkjdGrUVicyB2BsdaAv1tvow45bPM4sSwQ=="
   "resolved" "https://registry.npmjs.org/@material-ui/core/-/core-4.12.4.tgz"
   "version" "4.12.4"
@@ -4383,7 +4383,7 @@
   dependencies:
     "mimic-response" "^1.0.0"
 
-"clsx@^1.0.2", "clsx@^1.0.4", "clsx@^1.2.1":
+"clsx@^1.0.2", "clsx@^1.0.4", "clsx@^1.1.0", "clsx@^1.2.1":
   "integrity" "sha512-EcR6r5a8bj6pu3ycsa/E/cKVGuTgZJZdsyUYHOksG/UHIiKfjxzRxYJpyVBwYaQeOvghal9fcc4PidlgzugAQg=="
   "resolved" "https://registry.npmjs.org/clsx/-/clsx-1.2.1.tgz"
   "version" "1.2.1"
@@ -10200,15 +10200,13 @@
     "query-string" "^5.0.1"
     "sort-keys" "^2.0.0"
 
-"notistack@^0.8.6":
-  "integrity" "sha512-WJ4Mmk/Q9oEqOtQLJGI52GL1OglWd+GPpUFFHolw4rNq5qfAtl58WAUqIJk6A0t6Jr13BYl6B+QpJhEYH7lDBA=="
-  "resolved" "https://registry.npmjs.org/notistack/-/notistack-0.8.6.tgz"
-  "version" "0.8.6"
+"notistack@^1.0.0":
+  "integrity" "sha512-kIGwVy8qs2hpcDegLhjTQMlGkJvr7OVUg6mnOcjqwKOCZhCnkMt5h53kP9bPRKQQ3UckCzhkvuEPbyMbyYyRNQ=="
+  "resolved" "https://registry.npmjs.org/notistack/-/notistack-1.0.0.tgz"
+  "version" "1.0.0"
   dependencies:
-    "classnames" "^2.2.6"
+    "clsx" "^1.1.0"
     "hoist-non-react-statics" "^3.3.0"
-    "prop-types" "^15.6.2"
-    "react-is" "^16.8.6"
 
 "npm-run-path@^2.0.0":
   "integrity" "sha1-NakjLfo11wZ7TLLd8jV7GHFTbF8="
@@ -12140,7 +12138,7 @@
     "@types/react" "*"
     "prop-types" "^15.6.0"
 
-"react-is@^16.13.1", "react-is@^16.6.0", "react-is@^16.7.0", "react-is@^16.8.0 || ^17.0.0", "react-is@^16.8.4", "react-is@^16.8.6":
+"react-is@^16.13.1", "react-is@^16.6.0", "react-is@^16.7.0", "react-is@^16.8.0 || ^17.0.0", "react-is@^16.8.4":
   "integrity" "sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ=="
   "resolved" "https://registry.npmjs.org/react-is/-/react-is-16.13.1.tgz"
   "version" "16.13.1"

@@ -4,7 +4,7 @@ from flask_cors import CORS
 import geopandas as gpd
 import pandas as pd
 import zipfile
-from ria import RIA
+# from ria import RIA # Commented out
 import ee
 import requests
 import os
@@ -18,8 +18,8 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.preprocessing import StandardScaler
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True, origins=["https://gobiolivar.evenor-tech.com"])
-ria = RIA()
+CORS(app, supports_credentials=True, origins=["https://gobiolivar.evenor-tech.com", "http://localhost:3001"])
+# ria = RIA() # Commented out
 
 ee.Authenticate(auth_mode="gcloud")
 ee.Initialize(project='soil-values-predictor')

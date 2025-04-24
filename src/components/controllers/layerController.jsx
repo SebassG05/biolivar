@@ -26,7 +26,7 @@ const styles = {
         position: 'fixed',
         top: 74,
         right: 10,
-        width: 300,
+        width: 450,
         borderRadius: 9,
         margin: 0,
         zIndex: 900,
@@ -59,11 +59,8 @@ const styles = {
         paddingRight: 5, // Ensure some space at the right
     },
     layerText: {
-        flexGrow: 1,
-        maxWidth: '120px', // Set a max width for the layer text
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
+            flexGrow: 1,
+            paddingRight: 8 // opcional, si quieres espacio entre texto y el resto
     },
     checkbox: {
         marginRight: '8px', // Add space between the checkbox and text
@@ -432,66 +429,81 @@ getLegendContent = (layerId) => {
     }
 
     render() {
-        console.log(this.state.layers)
+        const visibleLayer = this.state.layers.find(layer => layer.visible);
+    
         return (
             <MuiThemeProvider theme={GlobalStyles}>
                 <Slide direction="left" in={this.state.open}>
                     <Card style={styles.root}>
                         <CardContent style={styles.header}>
-                            <Typography gutterBottom style={{ fontFamily: 'Lato, Arial, sans-serif', color:'white', fontWeight:'3' }} variant="h5" component="h2">Layers</Typography>
+                            <Typography gutterBottom style={{ fontFamily: 'Lato, Arial, sans-serif', color: 'white', fontWeight: '3' }} variant="h5" component="h2">Layers</Typography>
                             <Typography variant="body2" color="textSecondary">Manage and control layers</Typography>
                             <IconButton style={styles.closeBtn} aria-label="Close" onClick={() => this.setState({ open: false })}>
                                 <Icon fontSize="inherit">chevron_right</Icon>
                             </IconButton>
                         </CardContent>
-
+    
                         <CardContent style={styles.content}>
-
-                            
                             <List id="layers" style={styles.layerList}>
-                                                                {this.state.layers.map(layer => (
-                                    <ListItem style={styles.layerItem} key={layer.id}>
-                                        <ListItemText primary={
-                                            <span style={styles.layerText}>
-                                                <Tooltip
-                                                    title={this.getLegendContent(layer.id)}
-                                                    arrow
-                                                >
-                                                    <Icon fontSize="small">troubleshoot</Icon>
-                                                </Tooltip>
-						&nbsp;&nbsp;
-						<Tooltip arrow title={this.splitAssetName(layer.id)} sx={{ fontSize: '1.2rem' }}>
-                                                <span>{this.truncateLayerName(this.splitAssetName(layer.id))}</span>
-						</Tooltip>
-                                            </span>
-                                        } />
-                                        <Checkbox
-                                            checked={layer.visible}
-                                            onChange={() => this.handleLayerVisibilityChange(layer.id)}
-                                            color="primary"
-                                        />
-                                        <Slider
-                                            value={layer.transparency}
-                                            onChange={(e, value) => this.handleTransparencyChange(layer.id, value)}
-                                            min={0}
-                                            max={100}
-                                            style={styles.slider}
-                                        />
-			    <Tooltip title="Download this layer" aria-label="Download this layer" enterDelay={200}>
-                                <IconButton className="icon-container modal-trigger" aria-label="Download this layer" color="inherit">
-                                    <Icon style={styles.fontIcon}>download_icon</Icon>
-                                </IconButton>
-                            </Tooltip>
-                                    </ListItem>
+                                {this.state.layers.map(layer => (
+                                    <React.Fragment key={layer.id}>
+                                        <ListItem style={styles.layerItem}>
+                                            <ListItemText
+                                                primary={
+                                                    <span style={styles.layerText}>
+                                                        <Icon fontSize="small">troubleshoot</Icon>
+                                                        &nbsp;&nbsp;
+                                                        <span>{this.splitAssetName(layer.id)}</span>
+                                                    </span>
+                                                }
+                                            />
+                                            <Checkbox
+                                                checked={layer.visible}
+                                                onChange={() => this.handleLayerVisibilityChange(layer.id)}
+                                                color="primary"
+                                            />
+                                            <Slider
+                                                value={layer.transparency}
+                                                onChange={(e, value) => this.handleTransparencyChange(layer.id, value)}
+                                                min={0}
+                                                max={100}
+                                                style={styles.slider}
+                                            />
+                                            <Tooltip title="Download this layer" aria-label="Download this layer" enterDelay={200}>
+                                                <IconButton className="icon-container modal-trigger" aria-label="Download this layer" color="inherit">
+                                                    <Icon style={styles.fontIcon}>download_icon</Icon>
+                                                </IconButton>
+                                            </Tooltip>
+                                        </ListItem>
+                                    </React.Fragment>
                                 ))}
                             </List>
-
                         </CardContent>
                     </Card>
                 </Slide>
+    
+                {visibleLayer && (
+    <div style={{
+        position: 'fixed',
+        top: '38%',
+        right: '230px', // ajusta según el ancho del panel lateral
+        transform: 'translateY(-50%)',
+        backgroundColor: 'white',
+        padding: '15px',
+        borderRadius: '8px',
+        boxShadow: '0 0 15px rgba(0,0,0,0.2)',
+        zIndex: 1000,
+        width: '300px',
+        maxWidth: '300px'
+    }}>
+        {this.getLegendContent(visibleLayer.id)}
+    </div>
+)}
+
             </MuiThemeProvider>
         );
     }
+    
 }
 
 export default LayerController;

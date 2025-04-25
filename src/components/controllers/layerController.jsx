@@ -577,9 +577,10 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                                 {/* Info collapsible */}
                                 <Collapse in={this.state.infoOpen} timeout="auto" unmountOnExit>
                                     <div style={{ padding: '12px 16px', background: '#f9f9f9', borderRadius: 8, margin: '8px 0' }}>
-                                        <Typography variant="subtitle2" gutterBottom>¿Qué es Vegetation Changes?</Typography>
-                                        <Typography variant="body2">
-                                            Aquí puedes ver la explicación de los colores y valores de los cambios de vegetación en el mapa. Utiliza esta información para interpretar correctamente los datos visualizados. Si tienes dudas sobre este proceso, consulta la documentación o contacta con soporte.
+                                        <Typography variant="subtitle2" gutterBottom><b>¿Para qué sirve esta funcionalidad?</b></Typography>
+                                        <Typography variant="body2" style={{ textAlign: 'justify' }}>
+                                            Esta funcionalidad te muestra cómo ha cambiado la vegetación o el suelo en un lugar entre dos fechas. Usa imágenes de satélite Landsat para comparar si hay más o menos suelo desnudo, pasto o árboles, y si están más verdes o secos. <br /><br />
+                                            Además, también puede mostrar si el suelo está más seco o tiene más agua, gracias a otros indicadores especiales. Todo esto se ve en un mapa con colores, para que entiendas rápido qué zonas han cambiado. Las zonas en rojo o negativas son zonas donde el índice calculado ha disminuido, es decir, la cobertura vegetal está en un peor estado que la fecha inicial del análisis. Las zonas verdes o positivas indican que la cobertura ha mejorado respecto al inicio del análisis.
                                         </Typography>
                                     </div>
                                 </Collapse>

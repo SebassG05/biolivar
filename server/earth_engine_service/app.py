@@ -538,6 +538,9 @@ def vegetation_index_change_inspector():
 @app.route('/get_image', methods=['POST'])
 def get_image():
     try:
+        # Resolucion fija
+        scale_resolution = 10
+
         # Manejo de form-data con archivo
         start_date = request.form['startDate']
         end_date = request.form['endDate']
@@ -545,99 +548,140 @@ def get_image():
         
         if request.files.get('aoiDataFiles', None):
             file = request.files.get('aoiDataFiles', None)
-            # Suponiendo que el archivo es un shapefile o similar que puede ser leído directamente
             gdf = gpd.read_file(file)
-            geojson_dict = gdf.__geo_interface__
+            geojson_dict = gdf.geo_interface
             bbox = ee.FeatureCollection(geojson_dict['features'])    
         else:
-            # Si no hay archivo, se debe enviar un error o manejar de otra manera
             return jsonify({"error": "No geojson or file provided"}), 400
-            
+
+        # Cargar coleccion Sentinel-2
         coleccion_sentinel = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")\
             .filterDate(start_date, end_date)\
             .filterBounds(bbox)\
             .filterMetadata('CLOUDY_PIXEL_PERCENTAGE', 'less_than', 10)
-            
+
         mosaico = coleccion_sentinel.median().clip(bbox)
-            
         mosaico_bands = mosaico.select(['B4', 'B3', 'B2', 'B11', 'B1', 'B12', 'B8', 'B5'])
-        
+
+        # Funciones para indices
         def calculate_ndvi(image):
-            # Calcular NDVI usando la expresión
-            ndvi = image.expression(
-                'float((NIR - RED) / (NIR + RED))', {
+            return image.expression('float((NIR - RED) / (NIR + RED))', {
                 'NIR': image.select('B8'),
                 'RED': image.select('B4')
-            }).rename('NDVI')  # Renombrar como 'NDVI'
-            
-            # Imprimir NDVI (opcional, principalmente para debugging o exploración)
-            
-            return ndvi
-        
+            }).rename('NDVI')
+
         def calculate_evi(image):
-            return image.expression(
-                '2.5 * ((NIR - RED) / (NIR + 6 * RED - 7.5 * BLUE + 1))', {
-                    'NIR': image.select('B8'),
-                    'RED': image.select('B4'),
-                    'BLUE': image.select('B2')
-                }).rename('EVI')
-            
+            return image.expression('2.5 * ((NIR - RED) / (NIR + 6 * RED - 7.5 * BLUE + 1))', {
+                'NIR': image.select('B8'),
+                'RED': image.select('B4'),
+                'BLUE': image.select('B2')
+            }).rename('EVI')
+
         def calculate_gndvi(image):
-            gndvi = image.expression(
-                '(NIR - GREEN) / (NIR + GREEN)', 
-                {
-                    'NIR': image.select('B8'),  
-                    'GREEN': image.select('B3')
-                }).rename('GNDVI')
-            return gndvi
-        
+            return image.expression('(NIR - GREEN) / (NIR + GREEN)', {
+                'NIR': image.select('B8'),
+                'GREEN': image.select('B3')
+            }).rename('GNDVI')
+
+        def calculate_ndmi(image):
+            return image.expression('(NIR - SWIR1) / (NIR + SWIR1)', {
+                'NIR': image.select('B8'),
+                'SWIR1': image.select('B11')
+            }).rename('NDMI')
+
+        def calculate_msi(image):
+            return image.expression('SWIR1 / NIR', {
+                'SWIR1': image.select('B11'),
+                'NIR': image.select('B8')
+            }).rename('MSI')
+
+        def calculate_bi(image):
+            return image.expression('((SWIR1 + RED) - (NIR + BLUE)) / ((SWIR1 + RED) + (NIR + BLUE))', {
+                'SWIR1': image.select('B11'),
+                'RED': image.select('B4'),
+                'NIR': image.select('B8'),
+                'BLUE': image.select('B2')
+            }).rename('BI')
+
+        def calculate_savi(image):
+            return image.expression('1.5 * (NIR - RED) / (NIR + RED + 0.5)', {
+                'NIR': image.select('B8'),
+                'RED': image.select('B4')
+            }).rename('SAVI')
+
+        # Agregar todos los índices
         def add_indices(image):
             indices = [
-                calculate_ndvi(image), calculate_evi(image), calculate_gndvi(image)
+                calculate_ndvi(image),
+                calculate_evi(image),
+                calculate_gndvi(image),
+                calculate_ndmi(image),
+                calculate_msi(image),
+                calculate_bi(image),
+                calculate_savi(image)
             ]
             return image.addBands(indices)
 
-
+        # Aplicar indices
         composite_indices = add_indices(mosaico_bands)
-                
-        composite_clipped = []
-        
-        if index_type=="NDVI" :
+
+        # Seleccionar indice deseado
+        if index_type == "NDVI":
             composite_clipped = composite_indices.clip(bbox).select("NDVI")
-            
-        elif index_type=="GNDVI":
+        elif index_type == "GNDVI":
             composite_clipped = composite_indices.clip(bbox).select("GNDVI")
-
-            
-        elif index_type=="EVI":
+        elif index_type == "EVI":
             composite_clipped = composite_indices.clip(bbox).select("EVI")
-        
-        
+        elif index_type == "NDMI":
+            composite_clipped = composite_indices.clip(bbox).select("NDMI")
+        elif index_type == "MSI":
+            composite_clipped = composite_indices.clip(bbox).select("MSI")
+        elif index_type == "BI":
+            composite_clipped = composite_indices.clip(bbox).select("BI")
+        elif index_type == "SAVI":
+            composite_clipped = composite_indices.clip(bbox).select("SAVI")
+        else:
+            return jsonify({"error": "Invalid index type specified."}), 400
 
+        # Paleta de colores
         palette = [
-        'a50026', 'd73027', 'f46d43', 'fdae61', 'fee08b',
-        'ffffbf', 'd9ef8b', 'a6d96a', '66bd63', '1a9850', '006837'
+            'a50026', 'd73027', 'f46d43', 'fdae61', 'fee08b',
+            'ffffbf', 'd9ef8b', 'a6d96a', '66bd63', '1a9850', '006837'
         ]
+
         # Calcular percentiles 2 y 98
         percentiles = composite_clipped.reduceRegion(
             reducer=ee.Reducer.percentile([2, 98]),
             geometry=bbox.geometry(),
-            scale=30,
+            scale=scale_resolution,
             maxPixels=1e9
         ).getInfo()
+
         band_name = list(composite_clipped.bandNames().getInfo())[0]
         min_val = percentiles.get(f"{band_name}_p2")
         max_val = percentiles.get(f"{band_name}_p98")
+
         if min_val is None or max_val is None or min_val == max_val:
             min_val = 0.3
             max_val = 0.8
+
         visualization_parameters = {
-            'min': min_val, 'max': max_val,  'palette':  palette
+            'min': min_val, 'max': max_val, 'palette': palette
         }
+
         map_id = composite_clipped.getMapId(visualization_parameters)
-        bounds=bbox.geometry().getInfo()
-            
-        return jsonify({"success": True, "output": [map_id['tile_fetcher'].url_format, visualization_parameters, 'BAND_'+index_type+'_Result', bounds]}), 200
+        bounds = bbox.geometry().getInfo()
+
+        return jsonify({
+            "success": True,
+            "output": [
+                map_id['tile_fetcher'].url_format,
+                visualization_parameters,
+                'BAND_' + index_type + '_Result',
+                bounds,
+                {'scale_meters': scale_resolution}
+            ]
+        }), 200
 
     except Exception as e:
         print(str(e))

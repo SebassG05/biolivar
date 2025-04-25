@@ -10200,10 +10200,10 @@
     "query-string" "^5.0.1"
     "sort-keys" "^2.0.0"
 
-"notistack@^1.0.0":
-  "integrity" "sha512-kIGwVy8qs2hpcDegLhjTQMlGkJvr7OVUg6mnOcjqwKOCZhCnkMt5h53kP9bPRKQQ3UckCzhkvuEPbyMbyYyRNQ=="
-  "resolved" "https://registry.npmjs.org/notistack/-/notistack-1.0.0.tgz"
-  "version" "1.0.0"
+"notistack@^1.0.10":
+  "integrity" "sha512-z0y4jJaVtOoH3kc3GtNUlhNTY+5LE04QDeLVujX3VPhhzg67zw055mZjrBF+nzpv3V9aiPNph1EgRU4+t8kQTQ=="
+  "resolved" "https://registry.npmjs.org/notistack/-/notistack-1.0.10.tgz"
+  "version" "1.0.10"
   dependencies:
     "clsx" "^1.1.0"
     "hoist-non-react-statics" "^3.3.0"

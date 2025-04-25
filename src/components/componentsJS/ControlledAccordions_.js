@@ -116,7 +116,9 @@ export default function ControlledAccordions({ onSubmit }) {
       data.append('startDate', formData.startDate);
       data.append('endDate', formData.endDate);
 
-      const response = await fetch('https://gobiolivar.evenor-tech.com/api/vegetation_index_change_inspector', {
+      const apiUrl = 'http://127.0.0.1:5005/api/vegetation_index_change_inspector'; // Use local server
+      console.log('Calling API:', apiUrl);
+      const response = await fetch(apiUrl, {
         method: 'POST',
         body: data,
       });

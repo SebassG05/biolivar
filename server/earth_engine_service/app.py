@@ -476,8 +476,37 @@ def vegetation_index_change_inspector():
         map_id = delta_index.getMapId(visualization_parameters)
         bounds=aoi.geometry().getInfo()
 
+        # Calcular min y max del delta_index dentro del AOI
+        min_max_dict = delta_index.reduceRegion(
+            reducer=ee.Reducer.minMax(),
+            geometry=aoi.geometry(),
+            scale=30,  # Ajusta la escala según sea necesario
+            maxPixels=1e9
+        ).getInfo()
 
-        return jsonify({"success": True, "output": [map_id['tile_fetcher'].url_format, visualization_parameters, 'VICI_'+band+'_Result', bounds]}), 200
+        # Extraer min y max, manejar el caso donde no se encuentren
+        min_val = min_max_dict.get('delta' + band + '_min')
+        max_val = min_max_dict.get('delta' + band + '_max')
+
+        # --- DEBUG LOGGING ---
+        print(f"Calculated min: {min_val}, max: {max_val}") 
+        # --- END DEBUG LOGGING ---
+
+        # Modificar la respuesta para incluir min y max
+        output_data = [
+            map_id['tile_fetcher'].url_format, 
+            visualization_parameters, 
+            'VICI_'+band+'_Result', 
+            bounds,
+            min_val, # Añadir valor mínimo
+            max_val  # Añadir valor máximo
+        ]
+        
+        # --- DEBUG LOGGING ---
+        print(f"Sending output data: {output_data}")
+        # --- END DEBUG LOGGING ---
+
+        return jsonify({"success": True, "output": output_data}), 200
 
     except Exception as e:
         print(str(e))

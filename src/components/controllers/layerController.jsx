@@ -3,6 +3,8 @@ import Slider from '@material-ui/core/Slider';
 import emitter from '@utils/events.utils';
 import { Card, CardContent, Checkbox, Icon, IconButton, List, ListItem, ListItemText, Slide, Tooltip, Typography } from '@material-ui/core';
 import { MuiThemeProvider, createTheme } from '@material-ui/core/styles';
+import { Collapse } from '@material-ui/core';
+
 
 const GlobalStyles = createTheme({
     typography: {
@@ -125,7 +127,8 @@ class LayerController extends React.Component {
         layers: [],
         assets: [], // Aquí guardaremos los assets de GEE
         selectedAsset: '', // Aquí guardamos el asset seleccionado por el usuario
-        mapUrl: '' // Aquí guardamos la URL del mapa generado
+        mapUrl: '', // Aquí guardamos la URL del mapa generado
+        legendExpanded: false
 
     }
 
@@ -234,9 +237,18 @@ class LayerController extends React.Component {
             this.setState({ open: true });
         });
 
-        this.newLayerListener = emitter.addListener('newLayer', (newLayer) => {
+        // Modify the newLayer listener to store min/max if provided
+        this.newLayerListener = emitter.addListener('newLayer', (newLayerData) => {
+            // Assume newLayerData might contain { id, visible, transparency, min, max, ... }
+            const layerToAdd = {
+                id: newLayerData.id,
+                visible: newLayerData.visible !== undefined ? newLayerData.visible : true, // Default to true if not provided
+                transparency: newLayerData.transparency !== undefined ? newLayerData.transparency : 100, // Default to 100 if not provided
+                min: newLayerData.min, // Store min value
+                max: newLayerData.max  // Store max value
+            };
             this.setState((prevState) => ({
-                layers: [...prevState.layers, newLayer]
+                layers: [...prevState.layers, layerToAdd]
             }));
         });
 
@@ -263,8 +275,14 @@ class LayerController extends React.Component {
     }
 
     
-getLegendContent = (layerId) => {
+getLegendContent = (layer) => { // Changed parameter from layerId to layer
+    if (!layer) return null; // Return null if no layer object is provided
+    const layerId = layer.id; // Get id from the layer object
+
     if (layerId.includes('VICI')) {
+        // Use layer.min and layer.max if available, otherwise default or show placeholder
+        const minValue = layer.min !== undefined ? layer.min.toFixed(2) : 'N/A';
+        const maxValue = layer.max !== undefined ? layer.max.toFixed(2) : 'N/A';
         return (
             <div style={{ padding: '10px', textAlign: 'center' }}>
                 <Typography><strong>Vegetation Change</strong> %/year</Typography>
@@ -277,8 +295,10 @@ getLegendContent = (layerId) => {
                 }}>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="body2">-2</Typography>
-                    <Typography variant="body2">2</Typography>
+                    {/* Display dynamic min value */}
+                    <Typography variant="body2">{minValue}</Typography>
+                    {/* Display dynamic max value */}
+                    <Typography variant="body2">{maxValue}</Typography>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <Typography variant="body2">Decline</Typography>
@@ -429,6 +449,13 @@ getLegendContent = (layerId) => {
         window.removeEventListener('drop', this.handleDrop);
     }
 
+    toggleLegend = () => {
+        this.setState((prevState) => ({
+            legendExpanded: !prevState.legendExpanded
+        }));
+    };
+    
+
     render() {
         const visibleLayer = this.state.layers.find(layer => layer.visible);
     
@@ -486,20 +513,41 @@ getLegendContent = (layerId) => {
                 {visibleLayer && (
     <div style={{
         position: 'fixed',
-        top: '38%',
-        right: '10px', // ajusta según el ancho del panel lateral
-        transform: 'translateY(-50%)',
-        backgroundColor: 'white',
-        padding: '15px',
+        top: '30%',
+        right: '10px',
+        width: '450px',
+        background: 'white',
         borderRadius: '8px',
         boxShadow: '0 0 15px rgba(0,0,0,0.2)',
         zIndex: 1000,
-        width: '450px', // Changed width to 450px
-        maxWidth: '450px' // Changed maxWidth to 450px
+        overflow: 'hidden',
+        fontFamily: 'Arial, sans-serif',
+        fontSize: '12px'
     }}>
-        {this.getLegendContent(visibleLayer.id)}
+        <div
+            onClick={this.toggleLegend}
+            style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                cursor: 'pointer',
+                padding: '15px',
+                backgroundColor: '#f5f5f5',
+                borderBottom: this.state.legendExpanded ? '1px solid #ddd' : 'none'
+            }}
+        >
+            <Typography variant="body2"><strong>Legend</strong></Typography>
+            <Icon>{this.state.legendExpanded ? 'expand_less' : 'expand_more'}</Icon>
+        </div>
+
+        <Collapse in={this.state.legendExpanded} timeout="auto" unmountOnExit>
+            <div style={{ padding: '15px' }}>
+                {this.getLegendContent(visibleLayer)}
+            </div>
+        </Collapse>
     </div>
 )}
+
 
             </MuiThemeProvider>
         );

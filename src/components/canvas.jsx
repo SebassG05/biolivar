@@ -448,37 +448,50 @@ class Canvas extends React.Component {
 
     handleURLMoved = (movedURL) => {
         console.log('Received moved data:', movedURL);
-        // Aquí puedes hacer algo con los datos, como establecer el estado
-        this.setState({ url: movedURL[0] });
-        console.log(movedURL[2]);
-        // Emitir el evento con el nombre de la capa y la URL
+        // Extract min and max values (assuming they are at index 4 and 5)
+        const mapUrl = movedURL[0];
+        const layerId = movedURL[2];
+        const polygon = movedURL[3];
+        const minValue = movedURL[4]; // Extract min value
+        const maxValue = movedURL[5]; // Extract max value
+
+        this.setState({ url: mapUrl });
+        console.log(layerId);
+        
+        // Emit the newLayer event including min and max values
         emitter.emit('newLayer', {
-            id: movedURL[2],  // Nombre de la capa
-            url: movedURL[0],  // URL del mapa
+            id: layerId,          // Layer ID
+            url: mapUrl,          // Map URL
             visible: true,
-            transparency: 100
+            transparency: 100,
+            min: minValue,        // Pass min value
+            max: maxValue         // Pass max value
         });
+        
         console.log(movedURL)
-        emitter.emit('showSnackbar', 'success', `The layer '${this.splitAssetName(movedURL[2])}' has been loaded`);
+        emitter.emit('showSnackbar', 'success', `The layer '${this.splitAssetName(layerId)}' has been loaded`);
+        
+        // Add layer to the map
         this.state.map.addLayer({
-            'id': movedURL[2],
+            'id': layerId,
             'type': 'raster',
             'source': {
                 'type': 'raster',
                 'tiles': [
-                    this.state.url
+                    mapUrl // Use mapUrl directly
                 ],
                 'tileSize': 256
             },
             'paint': {
-                'raster-opacity': 0.8  // Opacidad de la capa de ráster
+                'raster-opacity': 0.8  // Layer opacity
             }
         });
-        const polygon = movedURL[3]; // Asumiendo que contiene el GeoJSON
+        
+        // Fly to geometry if available
         if (polygon && polygon.type === 'Polygon') {
             this.flyToGeometry(this.state.map, polygon)
         } else {
-            console.error('Invalid GeoJSON Polygon in movedURL[3]');
+            console.error('Invalid or missing GeoJSON Polygon in movedURL[3]');
         }
         console.log(this.state.url);
     };

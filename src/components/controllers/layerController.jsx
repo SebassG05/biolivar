@@ -106,6 +106,7 @@ const styles = {
         fontFamily: 'Arial, sans-serif',
         fontSize: '12px',
         lineHeight: '18px',
+        width: '20%',
         color: '#333',
         borderRadius: '3px',
         boxShadow: '0 0 15px rgba(0, 0, 0, 0.2)'
@@ -486,15 +487,15 @@ getLegendContent = (layerId) => {
     <div style={{
         position: 'fixed',
         top: '38%',
-        right: '230px', // ajusta según el ancho del panel lateral
+        right: '10px', // ajusta según el ancho del panel lateral
         transform: 'translateY(-50%)',
         backgroundColor: 'white',
         padding: '15px',
         borderRadius: '8px',
         boxShadow: '0 0 15px rgba(0,0,0,0.2)',
         zIndex: 1000,
-        width: '300px',
-        maxWidth: '300px'
+        width: '450px', // Changed width to 450px
+        maxWidth: '450px' // Changed maxWidth to 450px
     }}>
         {this.getLegendContent(visibleLayer.id)}
     </div>

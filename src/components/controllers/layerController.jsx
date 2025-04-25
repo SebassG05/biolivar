@@ -128,13 +128,15 @@ class LayerController extends React.Component {
         assets: [], // Aquí guardaremos los assets de GEE
         selectedAsset: '', // Aquí guardamos el asset seleccionado por el usuario
         mapUrl: '', // Aquí guardamos la URL del mapa generado
-        legendExpanded: false
-
+        legendExpanded: false,
+        showVegetationLegend: false
     }
 
     handleCloseClick = () => {
         this.setState({
-            open: false
+            open: false,
+            legendExpanded: false,
+            showVegetationLegend: false
         });
     }
 
@@ -253,7 +255,7 @@ class LayerController extends React.Component {
         });
 
         this.closeAllControllerListener = emitter.addListener('closeAllController', () => {
-            this.setState({ open: false });
+            this.setState({ open: false, legendExpanded: false, showVegetationLegend: false });
         });
 
         this.setMapZoomListener = emitter.addListener('setMapZoom', (z) => {
@@ -454,11 +456,18 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
             legendExpanded: !prevState.legendExpanded
         }));
     };
+
+    toggleVegetationLegend = () => {
+        this.setState(prevState => ({
+          showVegetationLegend: !prevState.showVegetationLegend
+        }));
+      }
+      
     
 
     render() {
         const visibleLayer = this.state.layers.find(layer => layer.visible);
-    
+
         return (
             <MuiThemeProvider theme={GlobalStyles}>
                 <Slide direction="left" in={this.state.open}>
@@ -509,46 +518,80 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                         </CardContent>
                     </Card>
                 </Slide>
-    
-                {visibleLayer && (
-    <div style={{
-        position: 'fixed',
-        top: '30%',
-        right: '10px',
-        width: '450px',
-        background: 'white',
-        borderRadius: '8px',
-        boxShadow: '0 0 15px rgba(0,0,0,0.2)',
-        zIndex: 1000,
-        overflow: 'hidden',
-        fontFamily: 'Arial, sans-serif',
-        fontSize: '12px'
-    }}>
-        <div
-            onClick={this.toggleLegend}
-            style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                cursor: 'pointer',
-                padding: '15px',
-                backgroundColor: '#f5f5f5',
-                borderBottom: this.state.legendExpanded ? '1px solid #ddd' : 'none'
-            }}
-        >
-            <Typography variant="body2"><strong>Legend</strong></Typography>
-            <Icon>{this.state.legendExpanded ? 'expand_less' : 'expand_more'}</Icon>
-        </div>
 
-        <Collapse in={this.state.legendExpanded} timeout="auto" unmountOnExit>
-            <div style={{ padding: '15px' }}>
-                {this.getLegendContent(visibleLayer)}
-            </div>
-        </Collapse>
-    </div>
-)}
+                {/* Show the legend panel only if open is true and there is a visible layer */}
+                {this.state.open && visibleLayer && (
+                    <div style={{
+                        position: 'fixed',
+                        top: '30%',
+                        right: '10px',
+                        width: '450px',
+                        background: 'white',
+                        borderRadius: '8px',
+                        boxShadow: '0 0 15px rgba(0,0,0,0.2)',
+                        zIndex: 1000,
+                        overflow: 'hidden',
+                        fontFamily: 'Arial, sans-serif',
+                        fontSize: '12px'
+                    }}>
+                        {/* Main Legend collapsible */}
+                        <div
+                            onClick={this.toggleLegend}
+                            style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                cursor: 'pointer',
+                                padding: '15px',
+                                backgroundColor: '#f5f5f5',
+                                borderBottom: this.state.legendExpanded ? '1px solid #ddd' : 'none'
+                            }}
+                        >
+                            <Typography variant="body2"><strong>Legend</strong></Typography>
+                            <Icon>{this.state.legendExpanded ? 'expand_less' : 'expand_more'}</Icon>
+                        </div>
 
-
+                        <Collapse in={this.state.legendExpanded} timeout="auto" unmountOnExit>
+                            <div style={{ padding: '15px' }}>
+                                {/* Sub-collapsible for Vegetation Changes */}
+                                <div
+                                    onClick={e => { e.stopPropagation(); this.toggleVegetationLegend(); }}
+                                    style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        cursor: 'pointer',
+                                        padding: '10px 0',
+                                        borderBottom: '1px solid #eee'
+                                    }}
+                                >
+                                    <Typography variant="body2"><strong>Vegetation Changes</strong></Typography>
+                                    <Icon>{this.state.showVegetationLegend ? 'expand_less' : 'expand_more'}</Icon>
+                                </div>
+                                <Collapse in={this.state.showVegetationLegend} timeout="auto" unmountOnExit>
+                                    <div style={{ padding: '10px 0', textAlign: 'center' }}>
+                                        <Typography>%/year</Typography>
+                                        <div style={{
+                                            width: '100%',
+                                            height: '20px',
+                                            background: 'linear-gradient(to right, red, white, green)',
+                                            margin: '10px 0',
+                                            borderRadius: '5px'
+                                        }}></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <Typography variant="body2">{visibleLayer.min !== undefined ? visibleLayer.min.toFixed(2) : 'N/A'}</Typography>
+                                            <Typography variant="body2">{visibleLayer.max !== undefined ? visibleLayer.max.toFixed(2) : 'N/A'}</Typography>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <Typography variant="body2">Decline</Typography>
+                                            <Typography variant="body2">Increase</Typography>
+                                        </div>
+                                    </div>
+                                </Collapse>
+                            </div>
+                        </Collapse>
+                    </div>
+                )}
             </MuiThemeProvider>
         );
     }

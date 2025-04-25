@@ -202,6 +202,9 @@ export default function ControlledAccordions({ onSubmit }) {
                   <MenuItem value="NDVI">NDVI</MenuItem>
                   <MenuItem value="EVI">EVI</MenuItem>
                   <MenuItem value="SAVI">SAVI</MenuItem>
+                  <MenuItem value="MSI">MSI</MenuItem>
+                  <MenuItem value="NDMI">NDMI</MenuItem>
+                  <MenuItem value="NBR">NBR</MenuItem>
                 </Select>
               </FormControl>
             </Grid>

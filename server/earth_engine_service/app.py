@@ -409,25 +409,33 @@ def vegetation_index_change_inspector():
             le7 = getSRcollection(startYear, startDay, endDay, 'LE07', aoi)
             lc8 = getSRcollection(startYear, startDay, endDay, 'LC08', aoi)
             return ee.ImageCollection(lt5.merge(le7).merge(lc8))
-
+        
         def add_indices(image):
             ndvi = image.expression('float((NIR - RED) / (NIR + RED))', {
-                'NIR': image.select('SR_B4'),
-                'RED': image.select('SR_B3')
+                'NIR': image.select('SR_B4'), 'RED': image.select('SR_B3')
             }).rename('NDVI')
 
             evi = image.expression('2.5 * ((NIR - RED) / (NIR + 6 * RED - 7.5 * BLUE + 1))', {
-                'NIR': image.select('SR_B4'),
-                'RED': image.select('SR_B3'),
-                'BLUE': image.select('SR_B1')
+                'NIR': image.select('SR_B4'), 'RED': image.select('SR_B3'), 'BLUE': image.select('SR_B1')
             }).rename('EVI')
 
-            savi = image.expression('float(((NIR - RED) / (NIR + RED + 0.5)) * (1 + 0.5))', {
-                'NIR': image.select('SR_B4'),
-                'RED': image.select('SR_B3')
+            savi = image.expression('((NIR - RED) / (NIR + RED + 0.5)) * (1 + 0.5)', {
+                'NIR': image.select('SR_B4'), 'RED': image.select('SR_B3')
             }).rename('SAVI')
 
-            return image.addBands([ndvi, evi, savi])
+            msi = image.expression('SWIR1 / NIR', {
+                'SWIR1': image.select('SR_B5'), 'NIR': image.select('SR_B4')
+            }).rename('MSI')
+
+            ndmi = image.expression('(NIR - SWIR1) / (NIR + SWIR1)', {
+                'NIR': image.select('SR_B4'), 'SWIR1': image.select('SR_B5')
+            }).rename('NDMI')
+
+            nbr = image.expression('(NIR - SWIR2) / (NIR + SWIR2)', {
+                'NIR': image.select('SR_B4'), 'SWIR2': image.select('SR_B7')
+            }).rename('NBR')
+
+            return image.addBands([ndvi, evi, savi, msi, ndmi, nbr])
 
         # Definir el rango de fechas y días del año
         startDay, endDay = start_date[5:], end_date[5:]
@@ -461,6 +469,27 @@ def vegetation_index_change_inspector():
         }
         elif band == "SAVI":
             delta_index = composite2.select('SAVI').subtract(composite1.select('SAVI')).rename('deltaSAVI')
+            visualization_parameters = {
+            'palette': ['red', 'white', 'green'],  # Paleta de colores
+            'min': -0.25,  # Mínimo valor
+            'max': 0.25    # Máximo valor
+        }
+        elif band == "MSI":
+            delta_index = composite2.select('MSI').subtract(composite1.select('MSI')).rename('deltaMSI')
+            visualization_parameters = {
+            'palette': ['red', 'white', 'green'],  # Paleta de colores
+            'min': -0.25,  # Mínimo valor
+            'max': 0.25    # Máximo valor
+        }
+        elif band == "NDMI":
+            delta_index = composite2.select('NDMI').subtract(composite1.select('NDMI')).rename('deltaNDMI')
+            visualization_parameters = {
+            'palette': ['red', 'white', 'green'],  # Paleta de colores
+            'min': -0.25,  # Mínimo valor
+            'max': 0.25    # Máximo valor
+        }
+        elif band == "NBR":
+            delta_index = composite2.select('NBR').subtract(composite1.select('NBR')).rename('deltaNBR')
             visualization_parameters = {
             'palette': ['red', 'white', 'green'],  # Paleta de colores
             'min': -0.25,  # Mínimo valor
@@ -593,6 +622,7 @@ def get_image():
             
         elif index_type=="EVI":
             composite_clipped = composite_indices.clip(bbox).select("EVI")
+        
         
 
         palette = [

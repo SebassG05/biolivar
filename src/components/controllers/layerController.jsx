@@ -129,7 +129,8 @@ class LayerController extends React.Component {
         selectedAsset: '', // Aquí guardamos el asset seleccionado por el usuario
         mapUrl: '', // Aquí guardamos la URL del mapa generado
         legendExpanded: false,
-        showVegetationLegend: false
+        showVegetationLegend: false,
+        infoOpen: false
     }
 
     handleCloseClick = () => {
@@ -536,7 +537,6 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                     }}>
                         {/* Main Legend collapsible */}
                         <div
-                            onClick={this.toggleLegend}
                             style={{
                                 display: 'flex',
                                 justifyContent: 'space-between',
@@ -547,15 +547,16 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                                 borderBottom: this.state.legendExpanded ? '1px solid #ddd' : 'none'
                             }}
                         >
-                            <Typography variant="body2"><strong>Legend</strong></Typography>
-                            <Icon>{this.state.legendExpanded ? 'expand_less' : 'expand_more'}</Icon>
+                            <div style={{ display: 'flex', alignItems: 'center' }} onClick={this.toggleLegend}>
+                                <Typography variant="body2"><strong>Legend</strong></Typography>
+                            </div>
+                            <Icon onClick={this.toggleLegend}>{this.state.legendExpanded ? 'expand_less' : 'expand_more'}</Icon>
                         </div>
 
                         <Collapse in={this.state.legendExpanded} timeout="auto" unmountOnExit>
                             <div style={{ padding: '15px' }}>
                                 {/* Sub-collapsible for Vegetation Changes */}
                                 <div
-                                    onClick={e => { e.stopPropagation(); this.toggleVegetationLegend(); }}
                                     style={{
                                         display: 'flex',
                                         justifyContent: 'space-between',
@@ -565,9 +566,23 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                                         borderBottom: '1px solid #eee'
                                     }}
                                 >
-                                    <Typography variant="body2"><strong>Vegetation Changes</strong></Typography>
-                                    <Icon>{this.state.showVegetationLegend ? 'expand_less' : 'expand_more'}</Icon>
+                                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                                        <Typography variant="body2"><strong>Vegetation Changes</strong></Typography>
+                                        <IconButton size="small" onClick={e => { e.stopPropagation(); this.setState({ infoOpen: !this.state.infoOpen }); }} style={{ marginLeft: 6 }}>
+                                            <Icon style={{ fontSize: 18, color: '#1976d2' }}>info</Icon>
+                                        </IconButton>
+                                    </div>
+                                    <Icon onClick={e => { e.stopPropagation(); this.toggleVegetationLegend(); }}>{this.state.showVegetationLegend ? 'expand_less' : 'expand_more'}</Icon>
                                 </div>
+                                {/* Info collapsible */}
+                                <Collapse in={this.state.infoOpen} timeout="auto" unmountOnExit>
+                                    <div style={{ padding: '12px 16px', background: '#f9f9f9', borderRadius: 8, margin: '8px 0' }}>
+                                        <Typography variant="subtitle2" gutterBottom>¿Qué es Vegetation Changes?</Typography>
+                                        <Typography variant="body2">
+                                            Aquí puedes ver la explicación de los colores y valores de los cambios de vegetación en el mapa. Utiliza esta información para interpretar correctamente los datos visualizados. Si tienes dudas sobre este proceso, consulta la documentación o contacta con soporte.
+                                        </Typography>
+                                    </div>
+                                </Collapse>
                                 <Collapse in={this.state.showVegetationLegend} timeout="auto" unmountOnExit>
                                     <div style={{ padding: '10px 0', textAlign: 'center' }}>
                                         <Typography>%/year</Typography>

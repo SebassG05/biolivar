@@ -358,6 +358,9 @@ def vegetation_index_change_inspector():
 
         aoi_file = request.files['aoiDataFiles']
         band = request.form['indexType']
+        print(f"Valor recibido en band (antes de normalizar): '{band}'")
+        band = band.strip().upper()
+        print(f"Valor recibido en band (después de normalizar): '{band}'")
         start_date = request.form.get('startDate')
         end_date = request.form.get('endDate')
 

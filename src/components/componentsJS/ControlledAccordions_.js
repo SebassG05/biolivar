@@ -106,6 +106,19 @@ export default function ControlledAccordions({ onSubmit }) {
   };
 
   const handleSubmit = async () => {
+    // Validación previa antes de enviar
+    if (!formData.aoiDataFiles || formData.aoiDataFiles.length === 0) {
+      emitter.emit('showSnackbar', 'error', 'Debes subir un archivo de área de interés (.zip)');
+      return;
+    }
+    if (!formData.indexType) {
+      emitter.emit('showSnackbar', 'error', 'Debes seleccionar un índice de vegetación');
+      return;
+    }
+    if (!formData.startDate || !formData.endDate) {
+      emitter.emit('showSnackbar', 'error', 'Debes seleccionar fechas de inicio y fin');
+      return;
+    }
     try {
       setLoading(true);
       setTimer(0);
@@ -125,13 +138,21 @@ export default function ControlledAccordions({ onSubmit }) {
 
       const result = await response.json();
       console.log(result);
-      if (result) {
+      if (result && result.success && Array.isArray(result.output)) {
         console.log('Data sent successfully', result.output);
         onSubmit(result.output);
         setLoading(false);
         emitter.emit('closeAllController');
         emitter.emit('openLayerController');
         return true;
+      } else if (result && result.error) {
+        setLoading(false);
+        emitter.emit('showSnackbar', 'error', `Error: '${result.error}'`);
+        return false;
+      } else {
+        setLoading(false);
+        emitter.emit('showSnackbar', 'error', 'Unexpected response from server.');
+        return false;
       }
 
     } catch (error) {

@@ -455,51 +455,45 @@ def vegetation_index_change_inspector():
         # Calcular la diferencia de índices
         if band == "NDVI":
             delta_index = composite2.select('NDVI').subtract(composite1.select('NDVI')).rename('deltaNDVI')
-            visualization_parameters = {
-            'palette': ['red', 'white', 'green'],  # Paleta de colores
-            'min': -0.25,  # Mínimo valor
-            'max': 0.25    # Máximo valor
-        }
+            palette = ['red', 'white', 'green']
         elif band == "EVI":
             delta_index = composite2.select('EVI').subtract(composite1.select('EVI')).rename('deltaEVI')
-            visualization_parameters = {
-            'palette': ['red', 'white', 'green'],  # Paleta de colores
-            'min': -2,  # Mínimo valor
-            'max': 2    # Máximo valor
-        }
+            palette = ['red', 'white', 'green']
         elif band == "SAVI":
             delta_index = composite2.select('SAVI').subtract(composite1.select('SAVI')).rename('deltaSAVI')
-            visualization_parameters = {
-            'palette': ['red', 'white', 'green'],  # Paleta de colores
-            'min': -0.25,  # Mínimo valor
-            'max': 0.25    # Máximo valor
-        }
+            palette = ['red', 'white', 'green']
         elif band == "MSI":
             delta_index = composite2.select('MSI').subtract(composite1.select('MSI')).rename('deltaMSI')
-            visualization_parameters = {
-            'palette': ['red', 'white', 'green'],  # Paleta de colores
-            'min': -0.25,  # Mínimo valor
-            'max': 0.25    # Máximo valor
-        }
+            palette = ['red', 'white', 'green']
         elif band == "NDMI":
             delta_index = composite2.select('NDMI').subtract(composite1.select('NDMI')).rename('deltaNDMI')
-            visualization_parameters = {
-            'palette': ['red', 'white', 'green'],  # Paleta de colores
-            'min': -0.25,  # Mínimo valor
-            'max': 0.25    # Máximo valor
-        }
+            palette = ['red', 'white', 'green']
         elif band == "NBR":
             delta_index = composite2.select('NBR').subtract(composite1.select('NBR')).rename('deltaNBR')
-            visualization_parameters = {
-            'palette': ['red', 'white', 'green'],  # Paleta de colores
-            'min': -0.25,  # Mínimo valor
-            'max': 0.25    # Máximo valor
-        }
+            palette = ['red', 'white', 'green']
         else:
             return jsonify({"error": "Tipo de índice desconocido"}), 400
 
-        # Parámetros de visualización
-        
+        # Calcular percentiles 2 y 98 para stretch
+        percentiles = delta_index.reduceRegion(
+            reducer=ee.Reducer.percentile([2, 98]),
+            geometry=aoi.geometry(),
+            scale=30,
+            maxPixels=1e9
+        ).getInfo()
+        band_name = list(delta_index.bandNames().getInfo())[0]
+        min_val = percentiles.get(f"{band_name}_p2")
+        max_val = percentiles.get(f"{band_name}_p98")
+        if min_val is None or max_val is None or min_val == max_val:
+            # fallback a min/max global si hay problema
+            min_val = -0.25
+            max_val = 0.25
+
+        visualization_parameters = {
+            'palette': palette,
+            'min': min_val,
+            'max': max_val
+        }
 
         # Obtener el mapa y las visualizaciones
         map_id = delta_index.getMapId(visualization_parameters)
@@ -541,11 +535,6 @@ def vegetation_index_change_inspector():
         print(str(e))
         return jsonify({"error": str(e)}), 500
 
-
-    except Exception as e:
-        print(str(e))
-        return jsonify({"error": str(e)}), 500
-    
 @app.route('/get_image', methods=['POST'])
 def get_image():
     try:
@@ -629,17 +618,26 @@ def get_image():
         'a50026', 'd73027', 'f46d43', 'fdae61', 'fee08b',
         'ffffbf', 'd9ef8b', 'a6d96a', '66bd63', '1a9850', '006837'
         ]
+        # Calcular percentiles 2 y 98
+        percentiles = composite_clipped.reduceRegion(
+            reducer=ee.Reducer.percentile([2, 98]),
+            geometry=bbox.geometry(),
+            scale=30,
+            maxPixels=1e9
+        ).getInfo()
+        band_name = list(composite_clipped.bandNames().getInfo())[0]
+        min_val = percentiles.get(f"{band_name}_p2")
+        max_val = percentiles.get(f"{band_name}_p98")
+        if min_val is None or max_val is None or min_val == max_val:
+            min_val = 0.3
+            max_val = 0.8
         visualization_parameters = {
-        'min': 0.3, 'max': 0.8,  'palette':  palette
-            }
-        
+            'min': min_val, 'max': max_val,  'palette':  palette
+        }
         map_id = composite_clipped.getMapId(visualization_parameters)
         bounds=bbox.geometry().getInfo()
-
             
         return jsonify({"success": True, "output": [map_id['tile_fetcher'].url_format, visualization_parameters, 'BAND_'+index_type+'_Result', bounds]}), 200
-
-
 
     except Exception as e:
         print(str(e))
@@ -734,10 +732,22 @@ def get_spectral_indexes():
             'a50026', 'd73027', 'f46d43', 'fdae61', 'fee08b',
             'ffffbf', 'd9ef8b', 'a6d96a', '66bd63', '1a9850', '006837'
             ]
+            # Calcular percentiles 2 y 98
+            percentiles = composite_clipped.reduceRegion(
+                reducer=ee.Reducer.percentile([2, 98]),
+                geometry=bbox.geometry(),
+                scale=30,
+                maxPixels=1e9
+            ).getInfo()
+            band_name = list(composite_clipped.bandNames().getInfo())[0]
+            min_val = percentiles.get(f"{band_name}_p2")
+            max_val = percentiles.get(f"{band_name}_p98")
+            if min_val is None or max_val is None or min_val == max_val:
+                min_val = 0.3
+                max_val = 0.8
             visualization_parameters = {
-            'min': 0.3, 'max': 0.8,  'palette':  palette
-                }
-            
+                'min': min_val, 'max': max_val,  'palette':  palette
+            }
             map_id = composite_clipped.getMapId(visualization_parameters)
             
                 

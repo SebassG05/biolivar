@@ -557,7 +557,7 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                             }}
                         >
                             <div style={{ display: 'flex', alignItems: 'center' }} onClick={this.toggleLegend}>
-                                <Typography variant="body2"><strong>Legend</strong></Typography>
+                                <Typography variant="body2"><strong><b>Leyenda</b></strong></Typography>
                             </div>
                             <Icon onClick={this.toggleLegend}>{this.state.legendExpanded ? 'expand_less' : 'expand_more'}</Icon>
                         </div>
@@ -576,7 +576,7 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                                     }}
                                 >
                                     <div style={{ display: 'flex', alignItems: 'center' }}>
-                                        <Typography variant="body2"><strong>Vegetation Changes</strong></Typography>
+                                        <Typography variant="body2"><strong><b>Vegetation Changes</b></strong></Typography>
                                         <IconButton size="small" onClick={e => { e.stopPropagation(); this.setState({ infoOpen: !this.state.infoOpen }); }} style={{ marginLeft: 6 }}>
                                             <Icon style={{ fontSize: 18, color: '#1976d2' }}>info</Icon>
                                         </IconButton>
@@ -595,7 +595,7 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                                 </Collapse>
                                 <Collapse in={this.state.showVegetationLegend} timeout="auto" unmountOnExit>
                                     <div style={{ padding: '10px 0', textAlign: 'center' }}>
-                                        <Typography>%/year</Typography>
+                                        <Typography>Tasa de cambio del índice</Typography>
                                         <div style={{
                                             width: '100%',
                                             height: '20px',
@@ -608,8 +608,17 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                                             <Typography variant="body2">{visibleLayer.max !== undefined ? visibleLayer.max.toFixed(2) : 'N/A'}</Typography>
                                         </div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <Typography variant="body2">Decline</Typography>
-                                            <Typography variant="body2">Increase</Typography>
+                                            <Typography variant="body2">Disminución</Typography>
+                                            <Typography variant="body2">Aumento</Typography>
+                                        </div>
+                                        {/* Mostrar fechas guardadas */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                            <Typography variant="body2">
+                                                {localStorage.getItem('startDate') ? `Inicio: ${localStorage.getItem('startDate')}` : 'Inicio: N/A'}
+                                            </Typography>
+                                            <Typography variant="body2">
+                                                {localStorage.getItem('endDate') ? `Fin: ${localStorage.getItem('endDate')}` : 'Fin: N/A'}
+                                            </Typography>
                                         </div>
                                     </div>
                                 </Collapse>

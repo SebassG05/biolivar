@@ -56,6 +56,17 @@ export default function ControlledAccordions({ onSubmit }) {
     return () => clearInterval(timerInterval);
   }, [loading]);
 
+  useEffect(() => {
+    // Cargar fechas guardadas en localStorage al iniciar
+    const savedStartDate = localStorage.getItem('startDate');
+    const savedEndDate = localStorage.getItem('endDate');
+    setFormData(prev => ({
+      ...prev,
+      startDate: savedStartDate || prev.startDate,
+      endDate: savedEndDate || prev.endDate
+    }));
+  }, []);
+
   const handleChangeExp = (panel) => (event, isExpanded) => {
     setExpanded(isExpanded ? panel : false);
   };
@@ -66,6 +77,10 @@ export default function ControlledAccordions({ onSubmit }) {
       ...prev,
       [name]: value
     }));
+    // Guardar fechas en localStorage si corresponde
+    if (name === 'startDate' || name === 'endDate') {
+      localStorage.setItem(name, value);
+    }
   };
 
   const handlePreviewIcon = (fileObject, classes) => {

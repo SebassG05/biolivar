@@ -452,6 +452,14 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
         window.removeEventListener('drop', this.handleDrop);
     }
 
+    getLegendTopOffset = () => {
+        const visibleLayers = this.state.layers.filter(layer => layer.visible);
+        if (visibleLayers.length >= 2) {
+            return '35%'; // Si hay 2 capas visibles o más, bajamos más
+        }
+        return '30%'; // Si hay 1 capa, mantenemos
+    };    
+
     toggleLegend = () => {
         this.setState((prevState) => ({
             legendExpanded: !prevState.legendExpanded
@@ -524,8 +532,8 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                 {this.state.open && visibleLayer && (
                     <div style={{
                         position: 'fixed',
-                        top: '30%',
-                        right: '10px',
+                        top: this.getLegendTopOffset(),
+                        right: '4px',
                         width: '450px',
                         background: 'white',
                         borderRadius: '8px',
@@ -533,6 +541,7 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                         zIndex: 1000,
                         overflow: 'hidden',
                         fontFamily: 'Arial, sans-serif',
+                        margin: '5px',
                         fontSize: '12px'
                     }}>
                         {/* Main Legend collapsible */}

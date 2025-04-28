@@ -538,7 +538,7 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                         background: 'white',
                         borderRadius: '8px',
                         boxShadow: '0 0 15px rgba(0,0,0,0.2)',
-                        zIndex: 1000,
+                        zIndex: 500,
                         overflow: 'hidden',
                         fontFamily: 'Arial, sans-serif',
                         margin: '5px',

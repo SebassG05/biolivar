@@ -482,8 +482,8 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                 <Slide direction="left" in={this.state.open}>
                     <Card style={styles.root}>
                         <CardContent style={styles.header}>
-                            <Typography gutterBottom style={{ fontFamily: 'Lato, Arial, sans-serif', color: 'white', fontWeight: '3' }} variant="h5" component="h2">Layers</Typography>
-                            <Typography variant="body2" color="textSecondary">Manage and control layers</Typography>
+                            <Typography gutterBottom style={{ fontFamily: 'Lato, Arial, sans-serif', color: 'white', fontWeight: '3' }} variant="h5" component="h2">Capas</Typography>
+                            <Typography variant="body2" color="textSecondary">Gestiona y controla las capas</Typography>
                             <IconButton style={styles.closeBtn} aria-label="Close" onClick={() => this.setState({ open: false })}>
                                 <Icon fontSize="inherit">chevron_right</Icon>
                             </IconButton>
@@ -576,7 +576,7 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                                     }}
                                 >
                                     <div style={{ display: 'flex', alignItems: 'center' }}>
-                                        <Typography variant="body2"><strong><b>Vegetation Changes</b></strong></Typography>
+                                        <Typography variant="body2"><strong><b>Cambios en la vegetación</b></strong></Typography>
                                         <IconButton size="small" onClick={e => { e.stopPropagation(); this.setState({ infoOpen: !this.state.infoOpen }); }} style={{ marginLeft: 6 }}>
                                             <Icon style={{ fontSize: 18, color: '#1976d2' }}>info</Icon>
                                         </IconButton>

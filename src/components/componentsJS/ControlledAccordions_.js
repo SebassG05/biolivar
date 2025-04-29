@@ -195,13 +195,13 @@ const ControlledAccordions = forwardRef(function ControlledAccordions({ onSubmit
           aria-controls="panel1bh-content"
           id="panel1bh-header"
         >
-          <Typography className={classes.heading}>Choose a veg index</Typography>
+          <Typography className={classes.heading}>Selecciona un índice de vegetación</Typography>
         </AccordionSummary>
         <AccordionDetails>
           <DropzoneArea
             onChange={(files) => handleFileChange('aoiDataFiles', files)}
             acceptedFiles={['.zip']}
-            dropzoneText="Area of Interest"
+            dropzoneText="Área de interés"
             maxFileSize={5000000}
             filesLimit={1}
             getPreviewIcon={handlePreviewIcon}
@@ -211,7 +211,7 @@ const ControlledAccordions = forwardRef(function ControlledAccordions({ onSubmit
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
               <TextField
-                label="Start Date"
+                label="Fecha de inicio"
                 type="date"
                 name="startDate"
                 value={formData.startDate}
@@ -224,7 +224,7 @@ const ControlledAccordions = forwardRef(function ControlledAccordions({ onSubmit
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
-                label="End Date"
+                label="Fecha fin"
                 type="date"
                 name="endDate"
                 value={formData.endDate}

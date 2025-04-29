@@ -422,13 +422,13 @@ class VegInspectorController extends React.Component {
                         <CardContent style={styles.header}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                 <div style={{ display: 'flex', alignItems: 'bottom' }}>
-                                    <Typography gutterBottom variant="h5" component="h2" style={{ fontFamily: 'Lato, Arial, sans-serif', color: 'white', fontWeight: '3', marginRight: 8 }}>Vegetation Change Inspec.</Typography>
+                                    <Typography gutterBottom variant="h5" component="h2" style={{ fontFamily: 'Lato, Arial, sans-serif', color: 'white', fontWeight: '3', marginRight: 8 }}>Análisis de cambios en la vegetación</Typography>
                                 </div>
                                 <IconButton style={styles.closeBtn} aria-label="Close" onClick={this.handleCloseClick}>
                                     <Icon fontSize="inherit">chevron_right</Icon>
                                 </IconButton>
                             </div>
-                            <Typography variant="body2" color="textSecondary">Upload your shape and map the veg. index result</Typography>
+                            <Typography variant="body2" color="textSecondary">Sube tu shape y obtén el mapa con el índice de vegetación.</Typography>
                         </CardContent>
                         <Collapse in={this.state.showInfo}>
                             <Paper elevation={3} style={{ margin: '16px auto', padding: 16, background: '#e3f2fd', position: 'relative', width: 480, height: 220, overflowY: 'auto', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'justify' }}>
@@ -465,7 +465,7 @@ class VegInspectorController extends React.Component {
                                     style={{ background: '#43a047', color: 'white', border: 'none', borderRadius: 4, padding: '8px 24px', fontWeight: 600, fontSize: 16, cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.08)' }}
                                     onClick={() => this.controlledAccordionsRef.current && this.controlledAccordionsRef.current.submit()}
                                 >
-                                    SUBMIT DATA
+                                    SUBIR DATOS
                                 </button>
                             </div>
                         </CardContent>

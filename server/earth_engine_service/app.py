@@ -195,7 +195,7 @@ def get_rusle():
             ).rename('K').clip(aoi)
             
             # Visualización del factor K
-            K_viz_params = {'min': 0, 'max': 0.06, 'palette': ['a52508', 'ff3818', 'fbff18', '25cdff', '2f35ff', '0b2dab']}
+            K_viz_params = {'min': 0, 'max': 0.06, 'palette': ['a52508', 'ff3818', 'fbff18', '25cdff', '0b2dab']}
             
             # **************** LS Factor ***************
             dem = ee.Image("WWF/HydroSHEDS/03CONDEM")
@@ -207,7 +207,7 @@ def get_rusle():
             ).multiply(LS4).rename('LS').clip(aoi)
             
             # Visualización del factor LS
-            LS_viz_params = {'min': 0, 'max': 90, 'palette': ['a52508', 'ff3818', 'fbff18', '25cdff', '2f35ff', '0b2dab']}
+            LS_viz_params = {'min': 0, 'max': 90, 'palette': ['a52508', 'ff3818', 'fbff18', '25cdff', '0b2dab']}
             
             # **************** C Factor **************
 
@@ -549,7 +549,7 @@ def get_image():
         if request.files.get('aoiDataFiles', None):
             file = request.files.get('aoiDataFiles', None)
             gdf = gpd.read_file(file)
-            geojson_dict = gdf.geo_interface
+            geojson_dict = gdf.__geo_interface__
             bbox = ee.FeatureCollection(geojson_dict['features'])    
         else:
             return jsonify({"error": "No geojson or file provided"}), 400
@@ -643,11 +643,35 @@ def get_image():
         else:
             return jsonify({"error": "Invalid index type specified."}), 400
 
-        # Paleta de colores
-        palette = [
-            'a50026', 'd73027', 'f46d43', 'fdae61', 'fee08b',
-            'ffffbf', 'd9ef8b', 'a6d96a', '66bd63', '1a9850', '006837'
-        ]
+        # Seleccionar paleta según el índice
+        if index_type in ["MSI", "NDMI"]:
+            palette = [
+                "#f7e7c3",  # beige claro (muy seco)
+                "#d9b77c",  # marrón claro
+                "#a2c8a3",  # verde suave (transición)
+                "#51a4c5",  # azul claro
+                "#0050ef",  # azul fuerte
+                "#4b0082"   # púrpura (muy húmedo)
+            ]
+        elif index_type == "BI":
+            palette = [
+                "#ffffff",  # blanco - valor mínimo (muy oscuro/brillante)
+                "#e6e6e6",
+                "#cccccc",
+                "#b3b3b3",
+                "#999999",
+                "#808080",
+                "#666666",
+                "#4d4d4d",
+                "#333333",
+                "#1a1a1a",
+                "#000000"   # negro - valor máximo (muy brillante)
+            ]
+        else:
+            palette = [
+                'a50026', 'd73027', 'f46d43', 'fdae61', 'fee08b',
+                'ffffbf', 'd9ef8b', 'a6d96a', '66bd63', '1a9850', '006837'
+            ]
 
         # Calcular percentiles 2 y 98
         percentiles = composite_clipped.reduceRegion(

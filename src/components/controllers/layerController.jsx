@@ -284,8 +284,10 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
 
     if (layerId.includes('VICI')) {
         // Use layer.min and layer.max if available, otherwise default or show placeholder
-        const minValue = layer.min !== undefined ? layer.min.toFixed(2) : 'N/A';
-        const maxValue = layer.max !== undefined ? layer.max.toFixed(2) : 'N/A';
+        const minValue = Number(layer.min);
+        const minText = isNaN(minValue) ? '' : minValue.toFixed(2);
+        const maxValue = Number(layer.max);
+        const maxText = isNaN(maxValue) ? '' : maxValue.toFixed(2);
         return (
             <div style={{ padding: '10px', textAlign: 'center' }}>
                 <Typography><strong>Vegetation Change</strong> %/year</Typography>
@@ -299,9 +301,9 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     {/* Display dynamic min value */}
-                    <Typography variant="body2">{minValue}</Typography>
+                    <Typography variant="body2">{minText}</Typography>
                     {/* Display dynamic max value */}
-                    <Typography variant="body2">{maxValue}</Typography>
+                    <Typography variant="body2">{maxText}</Typography>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <Typography variant="body2">Decline</Typography>
@@ -478,6 +480,10 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
 
     render() {
         const visibleLayer = this.state.layers.find(layer => layer.visible);
+        const minValue = Number(visibleLayer && visibleLayer.min);
+        const minText = isNaN(minValue) ? '' : minValue.toFixed(2);
+        const maxValue = Number(visibleLayer && visibleLayer.max);
+        const maxText = isNaN(maxValue) ? '' : maxValue.toFixed(2);
 
         return (
             <MuiThemeProvider theme={GlobalStyles}>
@@ -606,8 +612,8 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                                             borderRadius: '5px'
                                         }}></div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <Typography variant="body2">{visibleLayer.min !== undefined ? visibleLayer.min.toFixed(2) : 'N/A'}</Typography>
-                                            <Typography variant="body2">{visibleLayer.max !== undefined ? visibleLayer.max.toFixed(2) : 'N/A'}</Typography>
+                                            <Typography variant="body2">{minText}</Typography>
+                                            <Typography variant="body2">{maxText}</Typography>
                                         </div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                             <Typography variant="body2">Disminución</Typography>

@@ -481,11 +481,11 @@ class SearchController extends React.Component {
         emitter.removeListener(this.addPointListener);
         emitter.removeListener(this.updatePointListener);
 
-        // Destory Materialbox
-        //                         {loading ? <p>Cargando datos...</p> : <Plot data={traces} layout={layout} />}
-
+        // Destroy Materialbox
         var elems = document.querySelectorAll('.materialboxed');
-        elems.map(elem => elem.destory());
+        elems.forEach(elem => {
+            if (typeof elem.destroy === 'function') elem.destroy();
+        });
     }
 
     render() {

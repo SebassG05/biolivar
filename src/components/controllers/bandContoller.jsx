@@ -229,47 +229,76 @@ class BandController extends React.Component {
     };
 
     handleDataSubmit = (data) => {
-        console.log(data)
-        if (data[0].aoiDataFiles) {
-            console.log(data[0].startDate)
+        // Mostrar log para depuración
+        console.log('Datos enviados al backend:', data);
+        if (data[0].aoiDataFiles && data[0].aoiDataFiles.length > 0) {
             const formData = new FormData();
             formData.append('startDate', data[0].startDate);
             formData.append('endDate', data[0].endDate);
             formData.append('indexType', data[0].indexType);
             formData.append('aoiDataFiles', data[0].aoiDataFiles[0]);
-            console.log(formData)
-            fetch('http://localhost:5004/get_image', {
+            fetch('http://localhost:5005/get_image', {
                 method: 'POST',
                 body: formData
             })
                 .then(response => response.json())
                 .then(result => {
-                    console.log(result.output)
-                    this.setState({ url: result.output })
-                    emitter.emit('moveURL', this.state.url)
+                    console.log('Respuesta del backend:', result);
+                    if (result && result.success && Array.isArray(result.output)) {
+                        this.setState({ url: result.output });
+                        emitter.emit('moveURL', result.output);
+                        emitter.emit('closeAllController');
+                        emitter.emit('openLayerController');
+                    } else if (result && result.output) {
+                        // Soporte para respuesta antigua (solo url)
+                        this.setState({ url: result.output });
+                        emitter.emit('moveURL', result.output);
+                        emitter.emit('closeAllController');
+                        emitter.emit('openLayerController');
+                    } else {
+                        emitter.emit('showSnackbar', 'error', 'No se recibió una URL de capa válida del backend.');
+                    }
                 })
-                .catch(error => console.error('Error:', error));
+                .catch(error => {
+                    console.error('Error:', error);
+                    emitter.emit('showSnackbar', 'error', 'Error al subir el archivo o procesar la capa.');
+                });
         } else if (data[1]) {
             const formData = new FormData();
             formData.append('startDate', data[0].startDate);
             formData.append('endDate', data[0].endDate);
             formData.append('indexType', data[0].indexType);
             formData.append('geojson', JSON.stringify(data[1]));
-            console.log(formData)
-            console.log(data[1])
-            fetch('http://localhost:5004/get_image', {
+            console.log(formData);
+            console.log(data[1]);
+            fetch('http://localhost:5005/get_image', {
                 method: 'POST',
                 body: formData
             })
                 .then(response => response.json())
                 .then(result => {
-                    console.log(result.output)
-                    this.setState({ url: result.output })
-                    emitter.emit('moveURL', this.state.url)
+                    console.log('Respuesta del backend:', result);
+                    if (result && result.success && Array.isArray(result.output)) {
+                        this.setState({ url: result.output });
+                        emitter.emit('moveURL', result.output);
+                        emitter.emit('closeAllController');
+                        emitter.emit('openLayerController');
+                    } else if (result && result.output) {
+                        // Soporte para respuesta antigua (solo url)
+                        this.setState({ url: result.output });
+                        emitter.emit('moveURL', result.output);
+                        emitter.emit('closeAllController');
+                        emitter.emit('openLayerController');
+                    } else {
+                        emitter.emit('showSnackbar', 'error', 'No se recibió una URL de capa válida del backend.');
+                    }
                 })
-                .catch(error => console.error('Error:', error));
+                .catch(error => {
+                    console.error('Error:', error);
+                    emitter.emit('showSnackbar', 'error', 'Error al procesar el GeoJSON.');
+                });
         } else {
-            console.error('No data to send: you must provide either a file or geoJSON data.');
+            emitter.emit('showSnackbar', 'error', 'Debes subir un archivo ZIP válido.');
         }
     };
 

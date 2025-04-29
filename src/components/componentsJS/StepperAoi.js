@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Stepper from '@mui/material/Stepper';
 import Step from '@mui/material/Step';
@@ -23,20 +23,18 @@ export default function HorizontalLinearStepperAOI({onSubmit, onIndexTypeChange,
     aoiDataFiles: []
   });
 
+  useEffect(() => {
+    if (typeof onStepChange === 'function') {
+      onStepChange(activeStep);
+    }
+  }, [activeStep, onStepChange]);
+
   const handleNext = () => {
-    setActiveStep((prevActiveStep) => {
-      const nextStep = prevActiveStep + 1;
-      if (onStepChange) onStepChange(nextStep);
-      return nextStep;
-    });
+    setActiveStep((prevActiveStep) => prevActiveStep + 1);
   };
 
   const handleBack = () => {
-    setActiveStep((prevActiveStep) => {
-      const prevStep = prevActiveStep - 1;
-      if (onStepChange) onStepChange(prevStep);
-      return prevStep;
-    });
+    setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
 
   const handleSubmit = async () => {
@@ -47,11 +45,10 @@ export default function HorizontalLinearStepperAOI({onSubmit, onIndexTypeChange,
         console.error("Error fetching data: ", error);
     }
     setLoading(false);
-};
+  };
 
   const handleReset = () => {
     setActiveStep(0);
-    if (onStepChange) onStepChange(0);
     setFormData({
       startDate: '',
       endDate: '',
@@ -121,19 +118,23 @@ export default function HorizontalLinearStepperAOI({onSubmit, onIndexTypeChange,
         );
       case 2:
         return (
-
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-
-        <DropzoneArea
+            <DropzoneArea
               onChange={(files) => handleFileChange('aoiDataFiles', files)}
               acceptedFiles={['.zip']}
               dropzoneText="Área"
               maxFileSize={5000000}
               filesLimit={1}
+              files={formData.aoiDataFiles}
               style={{ width: '100%', border: 'dashed', cursor: 'pointer', overflow: 'hidden' }}
             />
-            
-            
+            {formData.aoiDataFiles && formData.aoiDataFiles.length > 0 && (
+              <Box sx={{ mt: 2, width: '100%', textAlign: 'center' }}>
+                <Typography variant="body2" color="primary">
+                  Archivo subido: {formData.aoiDataFiles[0].name}
+                </Typography>
+              </Box>
+            )}
           </Box>
         );
       default:
@@ -166,8 +167,8 @@ export default function HorizontalLinearStepperAOI({onSubmit, onIndexTypeChange,
                 Back
               </Button>
               <Button onClick={() => { if (activeStep === steps.length - 1) handleSubmit(); handleNext(); }}>
-  {activeStep === steps.length - 1 ? 'Finish' : 'Next'}
-</Button>
+                {activeStep === steps.length - 1 ? 'Finish' : 'Next'}
+              </Button>
             </Box>
           </React.Fragment>
         )}

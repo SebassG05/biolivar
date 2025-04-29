@@ -27,8 +27,10 @@ class Feature extends React.Component {
     }
 
     componentWillUnmount() {
-        // Destory TapTarget
-        this.state.tapTarget.destory();
+        // Destroy TapTarget
+        if (this.state.tapTarget && typeof this.state.tapTarget.destroy === 'function') {
+            this.state.tapTarget.destroy();
+        }
     }
 
     render() {

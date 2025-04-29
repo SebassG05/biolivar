@@ -23,10 +23,6 @@ const theme = createTheme({
     }
 });
 
-
-
-
-
 const styles = {
     root: {
         position: 'fixed',
@@ -35,7 +31,7 @@ const styles = {
         borderRadius: 4,
         minWidth: 350,
         margin: 0,
-        width:900,
+        width: 900,
         zIndex: 900
     },
     header: {
@@ -186,7 +182,7 @@ class ImportController extends React.Component {
         previewCoordinate: {},
         loading: true,
         traces: [],
-        precipitationData:[],
+        precipitationData: [],
         temperatureData: [],
         watsatData: [],
         layoutTemperature: {
@@ -223,13 +219,12 @@ class ImportController extends React.Component {
             yaxis: { title: 'Cantidad' }
         },
         items: [
-            {id: 1, title: 'item #1'},
-            {id: 2, title: 'item #2'},
-            {id: 3, title: 'item #3'},
-            {id: 4, title: 'item #4'},
-            {id: 5, title: 'item #5'}
-          ]
-        ,
+            { id: 1, title: 'item #1' },
+            { id: 2, title: 'item #2' },
+            { id: 3, title: 'item #3' },
+            { id: 4, title: 'item #4' },
+            { id: 5, title: 'item #5' }
+        ],
         data: [],
         searchOptions: [
             {
@@ -266,7 +261,7 @@ class ImportController extends React.Component {
             }
         });
     }
-    
+
     resetPreviewImage = () => {
         this.setState({
             previewImage: null
@@ -355,7 +350,6 @@ class ImportController extends React.Component {
         });
     }
 
-    
     handleSearchOptionChange = (e) => {
         // Update search options
         var option = null;
@@ -413,7 +407,7 @@ class ImportController extends React.Component {
             this.setState({
                 open: true
             });
-         });
+        });
 
         this.closeAllControllerListener = emitter.addListener('closeAllController', () => {
             this.setState({
@@ -437,9 +431,6 @@ class ImportController extends React.Component {
         });
     }
 
-
-
-
     componentWillUnmount() {
         // Remove event listeners
         emitter.removeListener(this.openImportControllerListener);
@@ -447,24 +438,23 @@ class ImportController extends React.Component {
         emitter.removeListener(this.addPointListener);
         emitter.removeListener(this.updatePointListener);
 
-        // Destory Materialbox
-        //                         {loading ? <p>Cargando datos...</p> : <Plot data={traces} layout={layout} />}
-
+        // Destroy Materialbox
         var elems = document.querySelectorAll('.materialboxed');
-        elems.map(elem => elem.destory());
+        elems.forEach(elem => {
+            if (typeof elem.destroy === 'function') elem.destroy();
+        });
     }
 
-    render() {        
+    render() {
         return (
             <ThemeProvider theme={theme}>
                 <Slide direction="left" in={this.state.open}>
                     <Card style={styles.root}>
                         {/* Card header */}
                         <CardContent style={styles.header}>
-                        <Typography variant="h5" className={styles.title}>Data Importer</Typography>
+                            <Typography variant="h5" className={styles.title}>Data Importer</Typography>
 
-
-<HorizontalLinearStepperImport/>
+                            <HorizontalLinearStepperImport />
 
                         </CardContent>
                     </Card>

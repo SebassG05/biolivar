@@ -454,10 +454,12 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
 
     getLegendTopOffset = () => {
         const visibleLayers = this.state.layers.filter(layer => layer.visible);
-        if (visibleLayers.length >= 2) {
-            return '35%'; // Si hay 2 capas visibles o más, bajamos más
+        if (visibleLayers.length >= 3) {
+            return '42%'; // Si hay 3 o más capas, bajamos más
+        } else if (visibleLayers.length === 2) {
+            return '35%'; // Si hay 2 capas
         }
-        return '30%'; // Si hay 1 capa, mantenemos
+        return '30%'; // Si hay 1 capa
     };    
 
     toggleLegend = () => {

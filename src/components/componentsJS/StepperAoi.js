@@ -13,9 +13,8 @@ import { DropzoneArea } from 'material-ui-dropzone';
 
 const steps = ['Date Selection', 'Choose Index Type', 'Upload Data'];
 
-export default function HorizontalLinearStepperAOI({onSubmit, onIndexTypeChange, onStepChange}) {
+export default function HorizontalLinearStepperAOI({onSubmit, onIndexTypeChange, onStepChange, loading, setLoading}) {
   const [activeStep, setActiveStep] = useState(0);
-  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     startDate: '',
     endDate: '',
@@ -38,13 +37,13 @@ export default function HorizontalLinearStepperAOI({onSubmit, onIndexTypeChange,
   };
 
   const handleSubmit = async () => {
-    setLoading(true);
+    if (typeof setLoading === 'function') setLoading(true);
     try {
-        onSubmit([formData])
+        await onSubmit([formData]);
     } catch (error) {
         console.error("Error fetching data: ", error);
     }
-    setLoading(false);
+    // NO pongas setLoading(false) aquí, el padre lo hará cuando termine la petición
   };
 
   const handleReset = () => {

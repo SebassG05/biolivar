@@ -10,6 +10,8 @@ import InfoOutlined from '@material-ui/icons/InfoOutlined';
 import Collapse from '@material-ui/core/Collapse';
 import Paper from '@material-ui/core/Paper';
 import CloseIcon from '@material-ui/icons/Close';
+import Lottie from 'lottie-react';
+import treeGrow from '@/assets/tree-grow.json';
 
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import indigo from '@material-ui/core/colors/indigo';
@@ -197,6 +199,7 @@ class BandController extends React.Component {
             showDateInfo: false,
             currentIndexType: 'NDVI',
             activeStep: 0,
+            loading: false,
         };
     }
 
@@ -229,6 +232,7 @@ class BandController extends React.Component {
     };
 
     handleDataSubmit = (data) => {
+        this.setState({ loading: true });
         // Mostrar log para depuración
         console.log('Datos enviados al backend:', data);
         if (data[0].aoiDataFiles && data[0].aoiDataFiles.length > 0) {
@@ -243,6 +247,7 @@ class BandController extends React.Component {
             })
                 .then(response => response.json())
                 .then(result => {
+                    this.setState({ loading: false });
                     console.log('Respuesta del backend:', result);
                     if (result && result.success && Array.isArray(result.output)) {
                         this.setState({ url: result.output });
@@ -260,6 +265,7 @@ class BandController extends React.Component {
                     }
                 })
                 .catch(error => {
+                    this.setState({ loading: false });
                     console.error('Error:', error);
                     emitter.emit('showSnackbar', 'error', 'Error al subir el archivo o procesar la capa.');
                 });
@@ -277,6 +283,7 @@ class BandController extends React.Component {
             })
                 .then(response => response.json())
                 .then(result => {
+                    this.setState({ loading: false });
                     console.log('Respuesta del backend:', result);
                     if (result && result.success && Array.isArray(result.output)) {
                         this.setState({ url: result.output });
@@ -294,10 +301,12 @@ class BandController extends React.Component {
                     }
                 })
                 .catch(error => {
+                    this.setState({ loading: false });
                     console.error('Error:', error);
                     emitter.emit('showSnackbar', 'error', 'Error al procesar el GeoJSON.');
                 });
         } else {
+            this.setState({ loading: false });
             emitter.emit('showSnackbar', 'error', 'Debes subir un archivo ZIP válido.');
         }
     };
@@ -439,6 +448,49 @@ class BandController extends React.Component {
 
         return (
             <ThemeProvider theme={theme}>
+                {this.state.loading && (
+                    <div style={{
+                        position: 'fixed',
+                        inset: 0,
+                        width: '100vw',
+                        height: '100vh',
+                        background: 'rgba(138,213,137,0.7)',
+                        zIndex: 9999,
+                        display: 'flex',
+                        alignItems: 'center', // centrado vertical
+                        justifyContent: 'center', // centrado horizontal
+                        margin: 0,
+                        padding: 0
+                    }}>
+                        <div style={{
+                            width: 220,
+                            height: 220,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            margin: 0,
+                            padding: 0,
+                            flexDirection: 'column',
+                            transform: 'translateY(-140px)'
+                        }}>
+                            <Lottie animationData={treeGrow} loop={true} />
+                            <div style={{
+                                marginTop: 16,
+                                fontSize: 22,
+                                color: '#ffffff', // Cambiado a negro
+                                fontWeight: 600,
+                                letterSpacing: 1,
+                                fontFamily: 'Lato, Arial, sans-serif',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                minHeight: 32
+                            }}>
+                                <span className="loading-dots">Cargando capa<span className="dot">.</span><span className="dot">.</span><span className="dot">.</span></span>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 <Slide direction="left" in={this.state.open}>
                     <Card style={styles.root}>
                         {/* Card header */}
@@ -503,6 +555,8 @@ class BandController extends React.Component {
                                 onSubmit={this.handleDataSubmit}
                                 onIndexTypeChange={this.handleIndexTypeChange}
                                 onStepChange={this.handleStepChange}
+                                loading={this.state.loading}
+                                setLoading={loading => this.setState({ loading })}
                             />
                             {this.state.activeStep === 1 && (
                                 <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', marginTop: 16 }}>

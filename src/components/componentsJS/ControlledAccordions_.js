@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { makeStyles } from '@material-ui/core/styles';
-import { Backdrop, CircularProgress, InputLabel, Select, TextField, FormControl, MenuItem, Button, Grid } from '@material-ui/core';
+import { Backdrop, CircularProgress, InputLabel, Select, TextField, FormControl, MenuItem, Grid } from '@material-ui/core';
 import Accordion from '@material-ui/core/Accordion';
 import { DropzoneArea } from 'material-ui-dropzone';
 import { AttachFile, Description, PictureAsPdf, Theaters } from '@material-ui/icons';
@@ -8,6 +8,8 @@ import AccordionDetails from '@material-ui/core/AccordionDetails';
 import AccordionSummary from '@material-ui/core/AccordionSummary';
 import Typography from '@material-ui/core/Typography';
 import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
+import InfoOutlined from '@material-ui/icons/InfoOutlined';
+import Tooltip from '@material-ui/core/Tooltip';
 import emitter from '@utils/events.utils';
 
 const useStyles = makeStyles((theme) => ({
@@ -31,7 +33,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export default function ControlledAccordions({ onSubmit }) {
+const ControlledAccordions = forwardRef(function ControlledAccordions({ onSubmit, onIndexTypeChange }, ref) {
   const classes = useStyles();
   const [expanded, setExpanded] = useState(false);
   const [formData, setFormData] = useState({
@@ -80,6 +82,10 @@ export default function ControlledAccordions({ onSubmit }) {
     // Guardar fechas en localStorage si corresponde
     if (name === 'startDate' || name === 'endDate') {
       localStorage.setItem(name, value);
+    }
+    // Notificar cambio de índice al padre
+    if (name === 'indexType' && typeof onIndexTypeChange === 'function') {
+      onIndexTypeChange(value);
     }
   };
 
@@ -177,6 +183,10 @@ export default function ControlledAccordions({ onSubmit }) {
     }
   };
 
+  useImperativeHandle(ref, () => ({
+    submit: handleSubmit
+  }));
+
   return (
     <div className={classes.root}>
       <Accordion expanded={expanded === 'panel1'} onChange={handleChangeExp('panel1')}>
@@ -227,7 +237,6 @@ export default function ControlledAccordions({ onSubmit }) {
             </Grid>
             <Grid item xs={12} sm={12}>
               <FormControl className={classes.formControl}>
-                <InputLabel id="index-type-label">Index Type</InputLabel>
                 <Select
                   labelId="index-type-label"
                   id="index-type-select"
@@ -247,9 +256,6 @@ export default function ControlledAccordions({ onSubmit }) {
           </Grid>
         </AccordionDetails>
       </Accordion>
-      <Grid container justifyContent="flex-end">
-        <Button onClick={handleSubmit} color="primary" variant="contained">Submit Data</Button>
-      </Grid>
       <Backdrop className={classes.backdrop} open={loading}>
         <CircularProgress color="inherit" />
         <Typography variant="h6" className={classes.progressText}>
@@ -258,4 +264,6 @@ export default function ControlledAccordions({ onSubmit }) {
       </Backdrop>
     </div>
   );
-}
+});
+
+export default ControlledAccordions;

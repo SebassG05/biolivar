@@ -13,7 +13,7 @@ import { DropzoneArea } from 'material-ui-dropzone';
 
 const steps = ['Date Selection', 'Choose Index Type', 'Upload Data'];
 
-export default function HorizontalLinearStepperAOI({onSubmit}) {
+export default function HorizontalLinearStepperAOI({onSubmit, onIndexTypeChange, onStepChange}) {
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -24,11 +24,19 @@ export default function HorizontalLinearStepperAOI({onSubmit}) {
   });
 
   const handleNext = () => {
-    setActiveStep((prevActiveStep) => prevActiveStep + 1);
+    setActiveStep((prevActiveStep) => {
+      const nextStep = prevActiveStep + 1;
+      if (onStepChange) onStepChange(nextStep);
+      return nextStep;
+    });
   };
 
   const handleBack = () => {
-    setActiveStep((prevActiveStep) => prevActiveStep - 1);
+    setActiveStep((prevActiveStep) => {
+      const prevStep = prevActiveStep - 1;
+      if (onStepChange) onStepChange(prevStep);
+      return prevStep;
+    });
   };
 
   const handleSubmit = async () => {
@@ -43,6 +51,7 @@ export default function HorizontalLinearStepperAOI({onSubmit}) {
 
   const handleReset = () => {
     setActiveStep(0);
+    if (onStepChange) onStepChange(0);
     setFormData({
       startDate: '',
       endDate: '',
@@ -54,6 +63,9 @@ export default function HorizontalLinearStepperAOI({onSubmit}) {
 
   const handleChange = (event) => {
     setFormData({ ...formData, [event.target.name]: event.target.value });
+    if (event.target.name === 'indexType' && typeof onIndexTypeChange === 'function') {
+      onIndexTypeChange(event.target.value);
+    }
   };
 
   const handleFileChange = (name, files) => {
@@ -100,6 +112,10 @@ export default function HorizontalLinearStepperAOI({onSubmit}) {
               <MenuItem value="NDVI">NDVI</MenuItem>
               <MenuItem value="EVI">EVI</MenuItem>
               <MenuItem value="GNDVI">GNDVI</MenuItem>
+              <MenuItem value="NDMI">NDMI</MenuItem>
+              <MenuItem value="MSI">MSI</MenuItem>
+              <MenuItem value="BI">BI</MenuItem>
+              <MenuItem value="SAVI">SAVI</MenuItem>
             </Select>
           </Box>
         );

@@ -6,6 +6,10 @@ import Card from '@material-ui/core/Card';
 import CardContent from '@material-ui/core/CardContent';
 import { Typography, Icon, IconButton } from '@material-ui/core';
 import Box from '@mui/material/Box';
+import InfoOutlined from '@material-ui/icons/InfoOutlined';
+import Collapse from '@material-ui/core/Collapse';
+import Paper from '@material-ui/core/Paper';
+import CloseIcon from '@material-ui/icons/Close';
 
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import indigo from '@material-ui/core/colors/indigo';
@@ -35,20 +39,20 @@ const styles = {
         margin: 0,
         zIndex: 900
     },
-    value:'2',
+    value: '2',
     rooot: {
         width: '100%',
-      },
+    },
     heading: {
         fontSize: theme.typography.pxToRem(15),
         flexBasis: '33.33%',
         flexShrink: 0,
-      },
-      secondaryHeading: {
+    },
+    secondaryHeading: {
         fontSize: theme.typography.pxToRem(15),
         color: theme.palette.text.secondary,
-      },
-      header: {
+    },
+    header: {
         backgroundColor: 'rgb(138, 213, 137)'
     },
     content: {
@@ -185,8 +189,15 @@ const styles = {
 };
 
 class BandController extends React.Component {
-    state = {
-        open: false,
+    constructor(props) {
+        super(props);
+        this.state = {
+            open: false,
+            showInfo: false,
+            showDateInfo: false,
+            currentIndexType: 'NDVI',
+            activeStep: 0,
+        };
     }
 
     handleCloseClick = () => {
@@ -197,10 +208,25 @@ class BandController extends React.Component {
 
     handleChange = (event, newValue) => {
         this.setState({
-            value:newValue
-        })
+            value: newValue
+        });
     };
 
+    handleInfoClick = () => {
+        this.setState((prev) => ({ showInfo: !prev.showInfo }));
+    };
+
+    handleDateInfoClick = () => {
+        this.setState((prev) => ({ showDateInfo: !prev.showDateInfo }));
+    };
+
+    handleIndexTypeChange = (indexType) => {
+        this.setState({ currentIndexType: indexType });
+    };
+
+    handleStepChange = (step) => {
+        this.setState({ activeStep: step });
+    };
 
     handleDataSubmit = (data) => {
         console.log(data)
@@ -216,10 +242,12 @@ class BandController extends React.Component {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
-            .then(result => {console.log(result.output)
-                this.setState({url: result.output})
-              emitter.emit('moveURL', this.state.url)     })
+                .then(response => response.json())
+                .then(result => {
+                    console.log(result.output)
+                    this.setState({ url: result.output })
+                    emitter.emit('moveURL', this.state.url)
+                })
                 .catch(error => console.error('Error:', error));
         } else if (data[1]) {
             const formData = new FormData();
@@ -233,19 +261,17 @@ class BandController extends React.Component {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
-          .then(result => {console.log(result.output)
-            this.setState({url: result.output})
-          emitter.emit('moveURL', this.state.url)     })
-            .catch(error => console.error('Error:', error));
+                .then(response => response.json())
+                .then(result => {
+                    console.log(result.output)
+                    this.setState({ url: result.output })
+                    emitter.emit('moveURL', this.state.url)
+                })
+                .catch(error => console.error('Error:', error));
         } else {
             console.error('No data to send: you must provide either a file or geoJSON data.');
         }
-      //  this.setState({url: data.output})
-     //   console.log("Datos recibidos en BandController:", data.output);
-     //   emitter.emit('moveURL', this.state.url);
-        // Puedes manejar los datos como desees aquí
-      };
+    };
 
     handleWrapClick = () => {
         // Remove temp layer
@@ -261,7 +287,7 @@ class BandController extends React.Component {
             resultUnwrap: false
         });
     }
-    
+
     moveURL = () => {
         var url = this.state.url
         this.setState({ movedURL: url });
@@ -293,8 +319,6 @@ class BandController extends React.Component {
             searchOptions: this.state.searchOptions
         });
     }
-
-
 
     componentDidMount() {
         // Initialize popover
@@ -329,7 +353,7 @@ class BandController extends React.Component {
             this.setState({
                 open: true
             });
-         });
+        });
 
         this.closeAllControllerListener = emitter.addListener('closeAllController', () => {
             this.setState({
@@ -352,23 +376,10 @@ class BandController extends React.Component {
             });
         });
 
-
-    
         this.moveURListener = emitter.addListener('moveURL', () => {
             this.moveURL();
         });
     }
-
-    
-    
-
-    moveURL = () => {
-        var url = this.state.url
-        this.setState({ movedURL: url });
-        console.log(this.state.movedURL)
-
-    }
-    
 
     componentWillUnmount() {
         // Remove event listeners
@@ -382,29 +393,98 @@ class BandController extends React.Component {
         elems.map(elem => elem.destory());
     }
 
-    render() {        
+    render() {
+        // Explicaciones genéricas para cada índice
+        const indexExplanations = {
+            NDVI: '<strong> El </strong>NDVI<strong> sirve principalmente para </strong> medir la densidad y salud de la vegetación verde.<strong> Cuando el valor de NDVI en un píxel aumenta, significa que la vegetación se ha vuelto más densa o más saludable, probablemente con mayor contenido de clorofila. Cuando el NDVI disminuye, indica deterioro de la vegetación: puede deberse a estrés hídrico, pérdida de plantas, cosecha o aparición de áreas de suelo desnudo.</strong> Es uno de los índices más utilizados en agricultura, monitoreo forestal y detección de cambios estacionales.',
+            EVI: '<strong>El </strong>EVI <strong>se utiliza principalmente para </strong> monitorear vegetación en zonas muy densas, como selvas o bosques tropicales, <strong> donde el NDVI se puede saturar. También sirve para cultivos con estructuras densas. Si el valor de EVI en un píxel sube, señala que la cobertura vegetal se ha fortalecido o expandido. Si el EVI baja, indica una reducción en la densidad o salud de la vegetación, posiblemente por estrés ambiental, tala, etc.</strong> Su principal ventaja es que corrige mejor los efectos de polvo, atmósfera y suelo que el NDVI.',
+            GNDVI: '<strong> El </strong> GNDVI es una variante del NDVI que, en lugar de usar la banda roja, utiliza la banda del verde. Esto lo hace más sensible al contenido de clorofila en la vegetación y menos saturado en zonas de vegetación muy densa.<strong> Cuando el valor de GNDVI en un píxel aumenta, significa que la vegetación ha mejorado su contenido de clorofila y está más saludable. Si el GNDVI disminuye, indica un descenso en la actividad fotosintética, posiblemente debido a estrés, sequía o pérdida de biomasa.</strong>Este índice es utilizado principalmente en agricultura de precisión para evaluar la salud de los cultivos, detectar estrés nutricional y optimizar fertilizaciones.',
+            NDMI: '<strong> El </strong>NDMI <strong> se utiliza principalmente para </strong> detectar cambios en el contenido de humedad de la vegetación, especialmente en gestión forestal y detección temprana de sequías. Marca principalmente las zonas con encharcamiento.<strong> Cuando el valor de NDMI en un píxel sube, significa que la vegetación o el suelo ha ganado humedad y está en mejores condiciones hídricas. Si el NDMI baja, sugiere que las plantas o el suelo está perdiendo agua y podría estar entrando en estrés hídrico.</strong>',
+            MSI: '<strong> El </strong>MSI <strong> sirve principalmente para</strong> evaluar el nivel de estrés hídrico en la vegetación.<strong> Cuando el MSI en un píxel aumenta, indica que las plantas están bajo mayor estrés por falta de agua (más secas). En cambio, si el MSI disminuye, significa que la vegetación está mejor hidratada y menos estresada.</strong> Este índice es muy útil para monitorear sequías o la eficiencia en riego agrícola.',
+            BI: '<strong>El</strong> Brightness Index (BI) mide la intensidad general del reflejo de la superficie terrestre, combinando información de varias bandas espectrales, principalmente del rojo y del infrarrojo cercano.<strong> Cuando el valor de BI en un píxel aumenta, significa que la superficie se ha vuelto más brillante, lo que suele indicar presencia de suelos desnudos, áreas urbanas o superficies secas. Cuando el BI disminuye, indica superficies más oscuras, generalmente asociadas a vegetación densa o cuerpos de agua.</strong> Este índice se utiliza principalmente para diferenciar entre áreas de vegetación y áreas descubiertas o artificiales, y es muy útil en estudios de desertificación, expansión urbana y degradación de suelos.',
+            SAVI: '<strong> El </strong>SAVI <strong>es utilizado principalmente para</strong> estudiar vegetación en áreas donde el suelo expuesto influye mucho en la imagen, como en zonas agrícolas en crecimiento o ambientes semiáridos. Para cultivos con entrecalles amplios sería ideal.<strong> Cuando el valor de SAVI en un píxel aumenta, significa que ha mejorado la cobertura vegetal o la actividad fotosintética. Si el valor de SAVI disminuye, sugiere reducción de vegetación, mayor exposición del suelo, o estrés de las plantas.</strong>'
+        };
+
+        const dateExplanation =
+            '<strong> Las fechas seleccionadas se utilizan para  </strong> calcular la media o mediana del raster en ese periodo, permitiendo un análisis temporal más preciso y representativo de la variable de interés.';
+
         return (
             <ThemeProvider theme={theme}>
                 <Slide direction="left" in={this.state.open}>
                     <Card style={styles.root}>
                         {/* Card header */}
                         <CardContent style={styles.header}>
-                            <Typography gutterBottom style={{ fontFamily: 'Lato, Arial, sans-serif', color:'white', fontWeight:'3' }} variant="h5" component="h2">Cálculo de variables</Typography>
+                            <Typography gutterBottom style={{ fontFamily: 'Lato, Arial, sans-serif', color: 'white', fontWeight: '3' }} variant="h5" component="h2">Cálculo de variables</Typography>
                             <Typography variant="body2" color="textSecondary">Tanto ambientales como meteorológicas</Typography>
                             <IconButton style={styles.closeBtn} aria-label="Close" onClick={() => this.setState({ open: false })}>
                                 <Icon fontSize="inherit">chevron_right</Icon>
                             </IconButton>
                         </CardContent>
+                        {/* Paso 1: explicación de fechas */}
+                        {this.state.activeStep === 0 && (
+                            <>
+                                <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', marginTop: 16 }}>
+                                    <IconButton onClick={this.handleDateInfoClick} style={{ color: '#1976d2' }} aria-label="info-fecha">
+                                        <InfoOutlined />
+                                    </IconButton>
+                                    <span style={{ marginLeft: 4, color: '#1976d2', fontWeight: 500, fontSize: 15, cursor: 'pointer' }} onClick={this.handleDateInfoClick}>
+                                        ¿Por qué se piden las fechas?
+                                    </span>
+                                </div>
+                                <Collapse in={this.state.showDateInfo}>
+                                    <Paper elevation={3} style={{ margin: '16px auto', padding: 16, background: '#e3f2fd', position: 'relative', width: 400, minHeight: 60, maxWidth: '100%', overflowY: 'auto', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: 10 }}>
+                                        <IconButton size="small" style={{ position: 'absolute', top: 4, right: 4 }} onClick={this.handleDateInfoClick}>
+                                            <CloseIcon fontSize="small" />
+                                        </IconButton>
+                                        <Typography variant="subtitle1" style={{ fontWeight: 700, marginBottom: 8, textAlign: 'justify', color: '#1976d2' }}>
+                                            <span style={{ fontWeight: 700 }}>¿Por qué se piden las fechas?</span>
+                                        </Typography>
+                                        <Typography
+                                            variant="body2"
+                                            style={{ fontWeight: 'bold', textAlign: 'justify', color: '#333', lineHeight: 1.6, letterSpacing: 0.1 }}
+                                            dangerouslySetInnerHTML={{
+                                                __html: '<strong>Las fechas seleccionadas se utilizan para</strong> calcular la media o mediana del raster en ese periodo, permitiendo un análisis temporal más preciso y representativo de la variable de interés.'
+                                            }}
+                                        />
+                                    </Paper>
+                                </Collapse>
+                            </>
+                        )}
+                        {this.state.activeStep === 1 && (
+                            <>
+                                <Collapse in={this.state.showInfo}>
+                                    <Paper elevation={3} style={{ margin: '16px auto', padding: 18, background: '#e3f2fd', position: 'relative', width: 400, minHeight: 80, maxWidth: '100%', overflowY: 'auto', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: 10 }}>
+                                        <IconButton size="small" style={{ position: 'absolute', top: 4, right: 4 }} onClick={this.handleInfoClick}>
+                                            <CloseIcon fontSize="small" />
+                                        </IconButton>
+                                        <Typography variant="subtitle1" style={{ fontWeight: 700, marginBottom: 8, textAlign: 'justify', color: '#1976d2' }}>¿Qué significa el índice seleccionado?</Typography>
+                                        <Typography
+                                            variant="body2"
+                                            style={{ fontWeight: 'bold', textAlign: 'justify', color: '#333', lineHeight: 1.6, letterSpacing: 0.1 }}
+                                            dangerouslySetInnerHTML={{
+                                                __html: indexExplanations[this.state.currentIndexType]
+                                            }}
+                                        />
+                                    </Paper>
+                                </Collapse>
+                            </>
+                        )}
                         <CardContent style={styles.content}>
-                                <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-        </Box>
-        <HorizontalLinearStepperAOI onSubmit={this.handleDataSubmit}/>
-            
-        
-
-            <IconButton style={styles.closeBtn} aria-label="Close" onClick={this.handleCloseClick}>
-                                <Icon fontSize="inherit">chevron_right</Icon>
-                            </IconButton>
+                            <HorizontalLinearStepperAOI
+                                onSubmit={this.handleDataSubmit}
+                                onIndexTypeChange={this.handleIndexTypeChange}
+                                onStepChange={this.handleStepChange}
+                            />
+                            {this.state.activeStep === 1 && (
+                                <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', marginTop: 16 }}>
+                                    <IconButton onClick={this.handleInfoClick} style={{ color: '#1976d2' }} aria-label="info">
+                                        <InfoOutlined />
+                                    </IconButton>
+                                    <span style={{ marginLeft: 4, color: '#1976d2', fontWeight: 500, fontSize: 15, cursor: 'pointer' }} onClick={this.handleInfoClick}>
+                                        Más información
+                                    </span>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </Slide>

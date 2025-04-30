@@ -529,8 +529,8 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                         margin: '10px 0'
                     }}></div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
-                        <span>Disminución</span>
-                        <span>Aumento</span>
+                        <span>Suelo Desnudo</span>
+                        <span>Vegetación Sana</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
                         <span>Inicio: {localStorage.getItem('startDate') || 'N/A'}</span>
@@ -548,13 +548,13 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                     <div style={{
                         width: '100%',
                         height: 20,
-                        background: 'linear-gradient(to right, #f7fcf5, #c7e9c0, #7fcdbb, #41b6c4, #2c7fb8, #253494)',
+                        background: 'linear-gradient(to right, #a50026, #d73027, #f46d43, #fdae61, #fee08b, #ffffbf, #d9ef8b, #a6d96a, #66bd63, #1a9850, #006837)',
                         borderRadius: 5,
                         margin: '10px 0'
                     }}></div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
-                        <span>Disminución</span>
-                        <span>Aumento</span>
+                        <span>Suelo Desnudo</span>
+                        <span>Vegetación Sana</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
                         <span>Inicio: {localStorage.getItem('startDate') || 'N/A'}</span>
@@ -572,13 +572,13 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                     <div style={{
                         width: '100%',
                         height: 20,
-                        background: 'linear-gradient(to right, #ffffcc, #c2e699, #78c679, #31a354, #006837)',
+                        background: 'linear-gradient(to right, #a50026, #d73027, #f46d43, #fdae61, #fee08b, #ffffbf, #d9ef8b, #a6d96a, #66bd63, #1a9850, #006837)',
                         borderRadius: 5,
                         margin: '10px 0'
                     }}></div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
-                        <span>Disminución</span>
-                        <span>Aumento</span>
+                        <span>Suelo Desnudo</span>
+                        <span>Vegetación Sana</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
                         <span>Inicio: {localStorage.getItem('startDate') || 'N/A'}</span>
@@ -601,8 +601,8 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                         margin: '10px 0'
                     }}></div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
-                        <span>Disminución</span>
-                        <span>Aumento</span>
+                        <span>Menor Humedad</span>
+                        <span>Mayor Humedad</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
                         <span>Inicio: {localStorage.getItem('startDate') || 'N/A'}</span>
@@ -625,8 +625,8 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                         margin: '10px 0'
                     }}></div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
-                        <span>Disminución</span>
-                        <span>Aumento</span>
+                        <span>Humedad Alta</span>
+                        <span>Humedad Baja</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
                         <span>Inicio: {localStorage.getItem('startDate') || 'N/A'}</span>
@@ -649,8 +649,8 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                         margin: '10px 0'
                     }}></div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
-                        <span>Disminución</span>
-                        <span>Aumento</span>
+                        <span>Alto Brillo <span style={{fontWeight: 'normal'}}>(suelo desnudo)</span></span>
+                        <span>Bajo Brillo <span style={{fontWeight: 'normal'}}>(cobertura vegetal)</span></span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
                         <span>Inicio: {localStorage.getItem('startDate') || 'N/A'}</span>
@@ -673,8 +673,8 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                         margin: '10px 0'
                     }}></div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
-                        <span>Disminución</span>
-                        <span>Aumento</span>
+                        <span>Suelo Desnudo</span>
+                        <span>Vegetación Sana</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
                         <span>Inicio: {localStorage.getItem('startDate') || 'N/A'}</span>

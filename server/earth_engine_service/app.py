@@ -703,7 +703,8 @@ def get_image():
                 visualization_parameters,
                 'BAND_' + index_type + '_Result',
                 bounds,
-                {'scale_meters': scale_resolution}
+                min_val,  # valor mínimo calculado
+                max_val   # valor máximo calculado
             ]
         }), 200
 

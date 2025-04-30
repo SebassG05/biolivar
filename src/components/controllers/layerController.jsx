@@ -130,7 +130,10 @@ class LayerController extends React.Component {
         mapUrl: '', // Aquí guardamos la URL del mapa generado
         legendExpanded: false,
         showVegetationLegend: false,
-        infoOpen: false
+        infoOpen: false,
+        showSurfaceAnalysisLegend: false, // Nuevo estado para el subdesplegable
+        showSurfaceInfo: false, // Estado para el info del subdesplegable
+        selectedIndexType: 'NDVI' // Estado para el índice seleccionado
     }
 
     handleCloseClick = () => {
@@ -265,6 +268,11 @@ class LayerController extends React.Component {
 
         this.handleDatasetRemoveListener = emitter.addListener('handleDatasetRemove', () => {
             this.handleDatasetRemove();
+        });
+
+        // Escuchar cambios de índice desde el controlador de bandas
+        this.indexTypeListener = emitter.addListener('indexTypeChanged', (indexType) => {
+            this.setState({ selectedIndexType: indexType });
         });
 
         window.addEventListener('dragover', this.handleDragOver);
@@ -450,6 +458,7 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
         emitter.removeListener(this.setMapZoomListener);
         emitter.removeListener(this.handleDatasetRemoveListener);
         emitter.removeListener(this.newLayerListener);  
+        emitter.removeListener(this.indexTypeListener);
         window.removeEventListener('dragover', this.handleDragOver);
         window.removeEventListener('drop', this.handleDrop);
     }
@@ -476,7 +485,15 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
         }));
       }
       
-    
+    toggleSurfaceAnalysisLegend = () => {
+        this.setState(prevState => ({
+            showSurfaceAnalysisLegend: !prevState.showSurfaceAnalysisLegend
+        }));
+    };
+
+    handleSurfaceInfoClick = () => {
+        this.setState((prev) => ({ showSurfaceInfo: !prev.showSurfaceInfo }));
+    };
 
     render() {
         const visibleLayer = this.state.layers.find(layer => layer.visible);
@@ -484,6 +501,185 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
         const minText = isNaN(minValue) ? '' : minValue.toFixed(2);
         const maxValue = Number(visibleLayer && visibleLayer.max);
         const maxText = isNaN(maxValue) ? '' : maxValue.toFixed(2);
+
+        // Explicaciones y leyendas para cada índice
+        const indexExplanations = {
+            NDVI: 'NDVI Su valor varía entre -1 y +1. Cuando el valor está cerca de +1, indica vegetación densa y saludable; valores cercanos a 0 representan suelos descubiertos o vegetación muy escasa, y valores negativos indican agua, nieve o nubes.',
+            BI: 'Esta funcionalidad permite analizar el brillo general de la superficie usando el índice BI. Valores altos suelen indicar suelos desnudos o zonas urbanas, valores bajos vegetación densa o agua.',
+            MSI: 'El MSI no tiene un rango fijo universal, pero sus valores suelen oscilar desde valores cercanos a 0 (poca tensión hídrica) hasta valores mayores de 2 o 3 (alto estrés)',
+            SAVI: 'El rango de SAVI también va de -1 a +1, pero se usa principalmente en valores positivos.',
+        };
+        // Paletas reales usadas en el backend para cada índice
+        const indexLegends = {
+            NDVI: (
+                <div style={{ marginTop: 12 }}>
+                    <Typography variant="subtitle2"><b>NDVI</b></Typography>
+                    <div style={{
+                        width: '100%',
+                        height: 20,
+                        background: 'linear-gradient(to right, #a50026, #d73027, #f46d43, #fdae61, #fee08b, #ffffbf, #d9ef8b, #a6d96a, #66bd63, #1a9850, #006837)',
+                        borderRadius: 5,
+                        margin: '10px 0'
+                    }}></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
+                        <span>Disminución</span>
+                        <span>Aumento</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
+                        <span>Inicio: {localStorage.getItem('startDate') || 'N/A'}</span>
+                        <span>Fin: {localStorage.getItem('endDate') || 'N/A'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
+                        <span>Mín: {minText}</span>
+                        <span>Máx: {maxText}</span>
+                    </div>
+                </div>
+            ),
+            EVI: (
+                <div style={{ marginTop: 12 }}>
+                    <Typography variant="subtitle2"><b>EVI</b></Typography>
+                    <div style={{
+                        width: '100%',
+                        height: 20,
+                        background: 'linear-gradient(to right, #f7fcf5, #c7e9c0, #7fcdbb, #41b6c4, #2c7fb8, #253494)',
+                        borderRadius: 5,
+                        margin: '10px 0'
+                    }}></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
+                        <span>Disminución</span>
+                        <span>Aumento</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
+                        <span>Inicio: {localStorage.getItem('startDate') || 'N/A'}</span>
+                        <span>Fin: {localStorage.getItem('endDate') || 'N/A'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
+                        <span>Mín: {minText}</span>
+                        <span>Máx: {maxText}</span>
+                    </div>
+                </div>
+            ),
+            GNDVI: (
+                <div style={{ marginTop: 12 }}>
+                    <Typography variant="subtitle2"><b>GNDVI</b></Typography>
+                    <div style={{
+                        width: '100%',
+                        height: 20,
+                        background: 'linear-gradient(to right, #ffffcc, #c2e699, #78c679, #31a354, #006837)',
+                        borderRadius: 5,
+                        margin: '10px 0'
+                    }}></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
+                        <span>Disminución</span>
+                        <span>Aumento</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
+                        <span>Inicio: {localStorage.getItem('startDate') || 'N/A'}</span>
+                        <span>Fin: {localStorage.getItem('endDate') || 'N/A'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
+                        <span>Mín: {minText}</span>
+                        <span>Máx: {maxText}</span>
+                    </div>
+                </div>
+            ),
+            NDMI: (
+                <div style={{ marginTop: 12 }}>
+                    <Typography variant="subtitle2"><b>NDMI</b></Typography>
+                    <div style={{
+                        width: '100%',
+                        height: 20,
+                        background: 'linear-gradient(to right, #f7e7c3, #d9b77c, #a2c8a3, #51a4c5, #0050ef, #4b0082)',
+                        borderRadius: 5,
+                        margin: '10px 0'
+                    }}></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
+                        <span>Disminución</span>
+                        <span>Aumento</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
+                        <span>Inicio: {localStorage.getItem('startDate') || 'N/A'}</span>
+                        <span>Fin: {localStorage.getItem('endDate') || 'N/A'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
+                        <span>Mín: {minText}</span>
+                        <span>Máx: {maxText}</span>
+                    </div>
+                </div>
+            ),
+            MSI: (
+                <div style={{ marginTop: 12 }}>
+                    <Typography variant="subtitle2"><b>MSI</b></Typography>
+                    <div style={{
+                        width: '100%',
+                        height: 20,
+                        background: 'linear-gradient(to right, #f7e7c3, #d9b77c, #a2c8a3, #51a4c5, #0050ef, #4b0082)',
+                        borderRadius: 5,
+                        margin: '10px 0'
+                    }}></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
+                        <span>Disminución</span>
+                        <span>Aumento</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
+                        <span>Inicio: {localStorage.getItem('startDate') || 'N/A'}</span>
+                        <span>Fin: {localStorage.getItem('endDate') || 'N/A'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
+                        <span>Mín: {minText}</span>
+                        <span>Máx: {maxText}</span>
+                    </div>
+                </div>
+            ),
+            BI: (
+                <div style={{ marginTop: 12 }}>
+                    <Typography variant="subtitle2"><b>BI</b></Typography>
+                    <div style={{
+                        width: '100%',
+                        height: 20,
+                        background: 'linear-gradient(to right, #ffffff, #e6e6e6, #cccccc, #b3b3b3, #999999, #808080, #666666, #4d4d4d, #333333, #1a1a1a, #000000)',
+                        borderRadius: 5,
+                        margin: '10px 0'
+                    }}></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
+                        <span>Disminución</span>
+                        <span>Aumento</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
+                        <span>Inicio: {localStorage.getItem('startDate') || 'N/A'}</span>
+                        <span>Fin: {localStorage.getItem('endDate') || 'N/A'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
+                        <span>Mín: {minText}</span>
+                        <span>Máx: {maxText}</span>
+                    </div>
+                </div>
+            ),
+            SAVI: (
+                <div style={{ marginTop: 12 }}>
+                    <Typography variant="subtitle2"><b>SAVI</b></Typography>
+                    <div style={{
+                        width: '100%',
+                        height: 20,
+                        background: 'linear-gradient(to right, #a50026, #d73027, #f46d43, #fdae61, #fee08b, #ffffbf, #d9ef8b, #a6d96a, #66bd63, #1a9850, #006837)',
+                        borderRadius: 5,
+                        margin: '10px 0'
+                    }}></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
+                        <span>Disminución</span>
+                        <span>Aumento</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
+                        <span>Inicio: {localStorage.getItem('startDate') || 'N/A'}</span>
+                        <span>Fin: {localStorage.getItem('endDate') || 'N/A'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
+                        <span>Mín: {minText}</span>
+                        <span>Máx: {maxText}</span>
+                    </div>
+                </div>
+            )
+        };
 
         return (
             <MuiThemeProvider theme={GlobalStyles}>
@@ -628,6 +824,39 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                                                 {localStorage.getItem('endDate') ? `Fin: ${localStorage.getItem('endDate')}` : 'Fin: N/A'}
                                             </Typography>
                                         </div>
+                                    </div>
+                                </Collapse>
+
+                                {/* Nuevo subdesplegable: Análisis de la superficie */}
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        cursor: 'pointer',
+                                        padding: '10px 0',
+                                        borderBottom: '1px solid #eee'
+                                    }}
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                                        <Typography variant="body2"><strong><b>Análisis de la superficie</b></strong></Typography>
+                                        <IconButton size="small" onClick={e => { e.stopPropagation(); this.handleSurfaceInfoClick(); }} style={{ marginLeft: 6 }}>
+                                            <Icon style={{ fontSize: 18, color: '#1976d2' }}>info</Icon>
+                                        </IconButton>
+                                    </div>
+                                    <Icon onClick={e => { e.stopPropagation(); this.toggleSurfaceAnalysisLegend(); }}>{this.state.showSurfaceAnalysisLegend ? 'expand_less' : 'expand_more'}</Icon>
+                                </div>
+                                <Collapse in={this.state.showSurfaceInfo} timeout="auto" unmountOnExit>
+                                    <div style={{ padding: '12px 16px', background: '#f9f9f9', borderRadius: 8, margin: '8px 0' }}>
+                                        <Typography variant="subtitle2" gutterBottom><b>¿Para qué sirve esta funcionalidad con el índice seleccionado?</b></Typography>
+                                        <Typography variant="body2" style={{ textAlign: 'justify' }}>
+                                            {indexExplanations[this.state.selectedIndexType] || 'Selecciona un índice para ver la explicación.'}
+                                        </Typography>
+                                    </div>
+                                </Collapse>
+                                <Collapse in={this.state.showSurfaceAnalysisLegend} timeout="auto" unmountOnExit>
+                                    <div style={{ padding: '10px 0', textAlign: 'center' }}>
+                                        {indexLegends[this.state.selectedIndexType] || <Typography variant="body2">Selecciona un índice para ver la leyenda.</Typography>}
                                     </div>
                                 </Collapse>
                             </div>

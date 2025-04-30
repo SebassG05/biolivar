@@ -226,6 +226,7 @@ class BandController extends React.Component {
 
     handleIndexTypeChange = (indexType) => {
         this.setState({ currentIndexType: indexType });
+        emitter.emit('indexTypeChanged', indexType); // Notificar a LayerController
     };
 
     handleStepChange = (step) => {

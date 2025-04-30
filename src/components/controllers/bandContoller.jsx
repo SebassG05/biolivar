@@ -12,6 +12,7 @@ import Paper from '@material-ui/core/Paper';
 import CloseIcon from '@material-ui/icons/Close';
 import Lottie from 'lottie-react';
 import treeGrow from '@/assets/tree-grow.json';
+import Fade from '@material-ui/core/Fade';
 
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import indigo from '@material-ui/core/colors/indigo';
@@ -448,36 +449,48 @@ class BandController extends React.Component {
 
         return (
             <ThemeProvider theme={theme}>
-                {this.state.loading && (
+                <Fade in={this.state.loading} timeout={500}>
                     <div style={{
                         position: 'fixed',
                         inset: 0,
                         width: '100vw',
                         height: '100vh',
-                        background: 'rgba(138,213,137,0.7)',
                         zIndex: 9999,
                         display: 'flex',
-                        alignItems: 'center', // centrado vertical
-                        justifyContent: 'center', // centrado horizontal
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'transparent',
                         margin: 0,
                         padding: 0
                     }}>
                         <div style={{
-                            width: 220,
-                            height: 220,
+                            width: 350,
+                            height: 350,
+                            background: 'rgba(138,213,137,0.85)',
+                            borderRadius: '50%',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            margin: 0,
-                            padding: 0,
                             flexDirection: 'column',
-                            transform: 'translateY(-140px)'
+                            boxShadow: '0 0 40px 10px rgba(138,213,137,0.25)',
                         }}>
-                            <Lottie animationData={treeGrow} loop={true} />
                             <div style={{
-                                marginTop: 16,
+                                width: 220,
+                                height: 220,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                margin: 0,
+                                padding: 0,
+                                flexDirection: 'column',
+                                marginBottom: 30 // mueve el árbol hacia arriba
+                            }}>
+                                <Lottie animationData={treeGrow} loop={true} />
+                            </div>
+                            <div style={{
+                                marginTop: 3,
                                 fontSize: 22,
-                                color: '#ffffff', // Cambiado a negro
+                                color: '#ffffff',
                                 fontWeight: 600,
                                 letterSpacing: 1,
                                 fontFamily: 'Lato, Arial, sans-serif',
@@ -490,7 +503,7 @@ class BandController extends React.Component {
                             </div>
                         </div>
                     </div>
-                )}
+                </Fade>
                 <Slide direction="left" in={this.state.open}>
                     <Card style={styles.root}>
                         {/* Card header */}

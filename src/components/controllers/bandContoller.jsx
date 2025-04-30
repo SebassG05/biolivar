@@ -393,6 +393,7 @@ class BandController extends React.Component {
             this.setState({
                 open: true
             });
+            emitter.emit('setActiveTool', 'surfaceAnalysis'); // Notifica herramienta activa
         });
 
         this.closeAllControllerListener = emitter.addListener('closeAllController', () => {

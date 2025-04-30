@@ -133,7 +133,8 @@ class LayerController extends React.Component {
         infoOpen: false,
         showSurfaceAnalysisLegend: false, // Nuevo estado para el subdesplegable
         showSurfaceInfo: false, // Estado para el info del subdesplegable
-        selectedIndexType: 'NDVI' // Estado para el índice seleccionado
+        selectedIndexType: 'NDVI', // Estado para el índice seleccionado
+        activeTool: null // Nuevo estado para saber qué herramienta está activa
     }
 
     handleCloseClick = () => {
@@ -273,6 +274,11 @@ class LayerController extends React.Component {
         // Escuchar cambios de índice desde el controlador de bandas
         this.indexTypeListener = emitter.addListener('indexTypeChanged', (indexType) => {
             this.setState({ selectedIndexType: indexType });
+        });
+
+        // Escuchar qué herramienta está activa
+        this.activeToolListener = emitter.addListener('setActiveTool', (tool) => {
+            this.setState({ activeTool: tool });
         });
 
         window.addEventListener('dragover', this.handleDragOver);
@@ -459,6 +465,7 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
         emitter.removeListener(this.handleDatasetRemoveListener);
         emitter.removeListener(this.newLayerListener);  
         emitter.removeListener(this.indexTypeListener);
+        emitter.removeListener(this.activeToolListener);
         window.removeEventListener('dragover', this.handleDragOver);
         window.removeEventListener('drop', this.handleDrop);
     }
@@ -681,6 +688,8 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
             )
         };
 
+        const { activeTool } = this.state;
+
         return (
             <MuiThemeProvider theme={GlobalStyles}>
                 <Slide direction="left" in={this.state.open}>
@@ -768,24 +777,25 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
 
                         <Collapse in={this.state.legendExpanded} timeout="auto" unmountOnExit>
                             <div style={{ padding: '15px' }}>
-                                {/* Sub-collapsible for Vegetation Changes */}
+                                {/* Cambios en la vegetación */}
                                 <div
                                     style={{
                                         display: 'flex',
                                         justifyContent: 'space-between',
                                         alignItems: 'center',
-                                        cursor: 'pointer',
+                                        cursor: activeTool === 'vegChange' ? 'pointer' : 'not-allowed',
                                         padding: '10px 0',
-                                        borderBottom: '1px solid #eee'
+                                        borderBottom: '1px solid #eee',
+                                        opacity: activeTool === 'surfaceAnalysis' ? 0.4 : 1
                                     }}
                                 >
                                     <div style={{ display: 'flex', alignItems: 'center' }}>
                                         <Typography variant="body2"><strong><b>Cambios en la vegetación</b></strong></Typography>
-                                        <IconButton size="small" onClick={e => { e.stopPropagation(); this.setState({ infoOpen: !this.state.infoOpen }); }} style={{ marginLeft: 6 }}>
+                                        <IconButton size="small" onClick={e => { e.stopPropagation(); this.setState({ infoOpen: !this.state.infoOpen }); }} style={{ marginLeft: 6 }} disabled={activeTool === 'surfaceAnalysis'}>
                                             <Icon style={{ fontSize: 18, color: '#1976d2' }}>info</Icon>
                                         </IconButton>
                                     </div>
-                                    <Icon onClick={e => { e.stopPropagation(); this.toggleVegetationLegend(); }}>{this.state.showVegetationLegend ? 'expand_less' : 'expand_more'}</Icon>
+                                    <Icon onClick={e => { if (activeTool === 'vegChange') { e.stopPropagation(); this.toggleVegetationLegend(); } }}>{this.state.showVegetationLegend ? 'expand_less' : 'expand_more'}</Icon>
                                 </div>
                                 {/* Info collapsible */}
                                 <Collapse in={this.state.infoOpen} timeout="auto" unmountOnExit>
@@ -833,18 +843,19 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                                         display: 'flex',
                                         justifyContent: 'space-between',
                                         alignItems: 'center',
-                                        cursor: 'pointer',
+                                        cursor: activeTool === 'surfaceAnalysis' ? 'pointer' : 'not-allowed',
                                         padding: '10px 0',
-                                        borderBottom: '1px solid #eee'
+                                        borderBottom: '1px solid #eee',
+                                        opacity: activeTool === 'vegChange' ? 0.4 : 1
                                     }}
                                 >
                                     <div style={{ display: 'flex', alignItems: 'center' }}>
                                         <Typography variant="body2"><strong><b>Análisis de la superficie</b></strong></Typography>
-                                        <IconButton size="small" onClick={e => { e.stopPropagation(); this.handleSurfaceInfoClick(); }} style={{ marginLeft: 6 }}>
+                                        <IconButton size="small" onClick={e => { e.stopPropagation(); this.handleSurfaceInfoClick(); }} style={{ marginLeft: 6 }} disabled={activeTool === 'vegChange'}>
                                             <Icon style={{ fontSize: 18, color: '#1976d2' }}>info</Icon>
                                         </IconButton>
                                     </div>
-                                    <Icon onClick={e => { e.stopPropagation(); this.toggleSurfaceAnalysisLegend(); }}>{this.state.showSurfaceAnalysisLegend ? 'expand_less' : 'expand_more'}</Icon>
+                                    <Icon onClick={e => { if (activeTool === 'surfaceAnalysis') { e.stopPropagation(); this.toggleSurfaceAnalysisLegend(); } }}>{this.state.showSurfaceAnalysisLegend ? 'expand_less' : 'expand_more'}</Icon>
                                 </div>
                                 <Collapse in={this.state.showSurfaceInfo} timeout="auto" unmountOnExit>
                                     <div style={{ padding: '12px 16px', background: '#f9f9f9', borderRadius: 8, margin: '8px 0' }}>

@@ -358,6 +358,7 @@ class VegInspectorController extends React.Component {
             this.setState({
                 open: true
             });
+            emitter.emit('setActiveTool', 'vegChange'); // Notifica herramienta activa
         });
 
         this.closeAllControllerListener = emitter.addListener('closeAllController', () => {

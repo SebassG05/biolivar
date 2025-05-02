@@ -704,38 +704,40 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
     
                         <CardContent style={styles.content}>
                             <List id="layers" style={styles.layerList}>
-                                {this.state.layers.map(layer => (
-                                    <React.Fragment key={layer.id}>
-                                        <ListItem style={styles.layerItem}>
-                                            <ListItemText
-                                                primary={
-                                                    <span style={styles.layerText}>
-                                                        <Icon fontSize="small">troubleshoot</Icon>
-                                                        &nbsp;&nbsp;
-                                                        <span>{this.splitAssetName(layer.id)}</span>
-                                                    </span>
-                                                }
-                                            />
-                                            <Checkbox
-                                                checked={layer.visible}
-                                                onChange={() => this.handleLayerVisibilityChange(layer.id)}
-                                                color="primary"
-                                            />
-                                            <Slider
-                                                value={layer.transparency}
-                                                onChange={(e, value) => this.handleTransparencyChange(layer.id, value)}
-                                                min={0}
-                                                max={100}
-                                                style={styles.slider}
-                                            />
-                                            <Tooltip title="Download this layer" aria-label="Download this layer" enterDelay={200}>
-                                                <IconButton className="icon-container modal-trigger" aria-label="Download this layer" color="inherit">
-                                                    <Icon style={styles.fontIcon}>download_icon</Icon>
-                                                </IconButton>
-                                            </Tooltip>
-                                        </ListItem>
-                                    </React.Fragment>
-                                ))}
+                                {this.state.layers.map(layer => {
+                                    const indice = ['NDVI','EVI','GNDVI','NDMI','MSI','BI','SAVI'].find(idx => layer.id.toUpperCase().includes(idx));
+                                    return (
+                                        <React.Fragment key={layer.id}>
+                                            <ListItem style={styles.layerItem}>
+                                                <ListItemText
+                                                    primary={
+                                                        <span style={{...styles.layerText, width: '100%', display: 'block', textAlign: 'center'}}>
+                                                            <span style={{fontWeight: 'bold'}}>Índice: </span>
+                                                            <span>{indice || this.splitAssetName(layer.id)}</span>
+                                                        </span>
+                                                    }
+                                                />
+                                                <Checkbox
+                                                    checked={layer.visible}
+                                                    onChange={() => this.handleLayerVisibilityChange(layer.id)}
+                                                    color="primary"
+                                                />
+                                                <Slider
+                                                    value={layer.transparency}
+                                                    onChange={(e, value) => this.handleTransparencyChange(layer.id, value)}
+                                                    min={0}
+                                                    max={100}
+                                                    style={styles.slider}
+                                                />
+                                                <Tooltip title="Download this layer" aria-label="Download this layer" enterDelay={200}>
+                                                    <IconButton className="icon-container modal-trigger" aria-label="Download this layer" color="inherit">
+                                                        <Icon style={styles.fontIcon}>download_icon</Icon>
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </ListItem>
+                                        </React.Fragment>
+                                    );
+                                })}
                             </List>
                         </CardContent>
                     </Card>

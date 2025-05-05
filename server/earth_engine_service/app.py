@@ -696,6 +696,22 @@ def get_image():
         map_id = composite_clipped.getMapId(visualization_parameters)
         bounds = bbox.geometry().getInfo()
 
+        # Generar dataset de valores del índice dentro del AOI
+        # Usamos sample para obtener una muestra representativa de los valores del índice
+        try:
+            # sample devuelve una FeatureCollection con los valores del índice
+            samples_fc = composite_clipped.sample(
+                region=bbox.geometry(),
+                scale=scale_resolution,
+                numPixels=500,  # puedes ajustar el tamaño de la muestra
+                geometries=False
+            )
+            # Extraer los valores del índice
+            samples = samples_fc.aggregate_array(band_name).getInfo()
+        except Exception as e:
+            print(f"Error al extraer dataset de valores: {e}")
+            samples = []
+
         return jsonify({
             "success": True,
             "output": [
@@ -704,7 +720,8 @@ def get_image():
                 'BAND_' + index_type + '_Result',
                 bounds,
                 min_val,  # valor mínimo calculado
-                max_val   # valor máximo calculado
+                max_val,  # valor máximo calculado
+                samples   # dataset de valores del índice
             ]
         }), 200
 
@@ -1301,4 +1318,4 @@ def get_spatiotemporal_analysis():
 
 
 if __name__ == '__main__':
-    app.run(port=5005)
+    app.run(port=500)

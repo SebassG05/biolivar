@@ -201,7 +201,89 @@ class BandController extends React.Component {
             currentIndexType: 'NDVI',
             activeStep: 0,
             loading: false,
+            startDate: '',
+            endDate: '',
         };
+    }
+
+    componentDidMount() {
+        // Leer fechas de localStorage al montar
+        const savedStartDate = localStorage.getItem('startDate');
+        const savedEndDate = localStorage.getItem('endDate');
+        if (savedStartDate || savedEndDate) {
+            this.setState({
+                startDate: savedStartDate || '',
+                endDate: savedEndDate || ''
+            });
+        }
+
+        // Initialize popover
+        var anchorEl = document.getElementById('anchorEl');
+
+        // Initialize file reader
+        var reader = new FileReader();
+        reader.onload = (e) => {
+            // Get image info
+            var image = new Image();
+            image.src = e.target.result;
+
+            // Construct preview image object
+            var previewImage = {
+                longitude: image.height > image.width,
+                src: e.target.result
+            }
+
+            // Preview image
+            this.setState({
+                previewImage: previewImage
+            });
+        };
+
+        this.setState({
+            reader: reader,
+            anchorEl: anchorEl
+        });
+
+        // Bind event listeners
+        this.openBandControllerListener = emitter.addListener('openBandController', () => {
+            this.setState({
+                open: true
+            });
+            emitter.emit('setActiveTool', 'surfaceAnalysis'); // Notifica herramienta activa
+        });
+
+        this.closeAllControllerListener = emitter.addListener('closeAllController', () => {
+            this.setState({
+                open: false
+            });
+        });
+
+        this.updatePointListener = emitter.addListener('setPoint', (feature, styleCode, zoom) => {
+            var [lng, lat] = feature.geometry.coordinates;
+            var previewMapUrl = `https://api.mapbox.com/styles/v1/${styleCode}/static/pin-s+f00(${lng},${lat})/${lng},${lat},${zoom},0,1/250x155@2x?access_token=${ACCESS_TOKEN}`;
+
+            this.setState({
+                addPointUnwrap: true,
+                previewMapUrl: previewMapUrl,
+                geometry: feature,
+                previewCoordinate: {
+                    lng: parseFloat(lng).toFixed(3),
+                    lat: parseFloat(lat).toFixed(3)
+                }
+            });
+        });
+
+        this.moveURListener = emitter.addListener('moveURL', () => {
+            this.moveURL();
+        });
+    }
+
+    handleDateChange = (name, value) => {
+        // Guardar en localStorage y actualizar estado
+        if (name === 'startDate' || name === 'endDate') {
+            localStorage.setItem(name, value);
+            this.setState({ [name]: value });
+        }
     }
 
     handleCloseClick = () => {
@@ -243,7 +325,7 @@ class BandController extends React.Component {
             formData.append('endDate', data[0].endDate);
             formData.append('indexType', data[0].indexType);
             formData.append('aoiDataFiles', data[0].aoiDataFiles[0]);
-            fetch('http://localhost:5005/get_image', {
+            fetch('http://localhost:500/get_image', {
                 method: 'POST',
                 body: formData
             })
@@ -253,6 +335,17 @@ class BandController extends React.Component {
                     console.log('Respuesta del backend:', result);
                     if (result && result.success && Array.isArray(result.output)) {
                         this.setState({ url: result.output });
+                        emitter.emit('newLayer', {
+                            id: result.output[2], // nombre de la capa
+                            visible: true,
+                            transparency: 100,
+                            min: result.output[4],
+                            max: result.output[5],
+                            dataset: result.output[6] // <--- aquí va el array de valores
+                        });
+                        // EXTRAER FECHAS Y EMITIRLAS
+                        const fechas = Array.isArray(result.output[6]) ? result.output[6].map(d => d.Date).filter(Boolean) : [];
+                        emitter.emit('setBandDates', fechas);
                         emitter.emit('moveURL', result.output);
                         emitter.emit('closeAllController');
                         emitter.emit('openLayerController');
@@ -279,7 +372,7 @@ class BandController extends React.Component {
             formData.append('geojson', JSON.stringify(data[1]));
             console.log(formData);
             console.log(data[1]);
-            fetch('http://localhost:5005/get_image', {
+            fetch('http://localhost:500/get_image', {
                 method: 'POST',
                 body: formData
             })
@@ -289,6 +382,17 @@ class BandController extends React.Component {
                     console.log('Respuesta del backend:', result);
                     if (result && result.success && Array.isArray(result.output)) {
                         this.setState({ url: result.output });
+                        emitter.emit('newLayer', {
+                            id: result.output[2], // nombre de la capa
+                            visible: true,
+                            transparency: 100,
+                            min: result.output[4],
+                            max: result.output[5],
+                            dataset: result.output[6] // <--- aquí va el array de valores
+                        });
+                        // EXTRAER FECHAS Y EMITIRLAS
+                        const fechas = Array.isArray(result.output[6]) ? result.output[6].map(d => d.Date).filter(Boolean) : [];
+                        emitter.emit('setBandDates', fechas);
                         emitter.emit('moveURL', result.output);
                         emitter.emit('closeAllController');
                         emitter.emit('openLayerController');
@@ -357,68 +461,6 @@ class BandController extends React.Component {
 
         this.setState({
             searchOptions: this.state.searchOptions
-        });
-    }
-
-    componentDidMount() {
-        // Initialize popover
-        var anchorEl = document.getElementById('anchorEl');
-
-        // Initialize file reader
-        var reader = new FileReader();
-        reader.onload = (e) => {
-            // Get image info
-            var image = new Image();
-            image.src = e.target.result;
-
-            // Construct preview image object
-            var previewImage = {
-                longitude: image.height > image.width,
-                src: e.target.result
-            }
-
-            // Preview image
-            this.setState({
-                previewImage: previewImage
-            });
-        };
-
-        this.setState({
-            reader: reader,
-            anchorEl: anchorEl
-        });
-
-        // Bind event listeners
-        this.openBandControllerListener = emitter.addListener('openBandController', () => {
-            this.setState({
-                open: true
-            });
-            emitter.emit('setActiveTool', 'surfaceAnalysis'); // Notifica herramienta activa
-        });
-
-        this.closeAllControllerListener = emitter.addListener('closeAllController', () => {
-            this.setState({
-                open: false
-            });
-        });
-
-        this.updatePointListener = emitter.addListener('setPoint', (feature, styleCode, zoom) => {
-            var [lng, lat] = feature.geometry.coordinates;
-            var previewMapUrl = `https://api.mapbox.com/styles/v1/${styleCode}/static/pin-s+f00(${lng},${lat})/${lng},${lat},${zoom},0,1/250x155@2x?access_token=${ACCESS_TOKEN}`;
-
-            this.setState({
-                addPointUnwrap: true,
-                previewMapUrl: previewMapUrl,
-                geometry: feature,
-                previewCoordinate: {
-                    lng: parseFloat(lng).toFixed(3),
-                    lat: parseFloat(lat).toFixed(3)
-                }
-            });
-        });
-
-        this.moveURListener = emitter.addListener('moveURL', () => {
-            this.moveURL();
         });
     }
 
@@ -572,6 +614,9 @@ class BandController extends React.Component {
                                 onStepChange={this.handleStepChange}
                                 loading={this.state.loading}
                                 setLoading={loading => this.setState({ loading })}
+                                startDate={this.state.startDate}
+                                endDate={this.state.endDate}
+                                onDateChange={this.handleDateChange}
                             />
                             {this.state.activeStep === 1 && (
                                 <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', marginTop: 16 }}>

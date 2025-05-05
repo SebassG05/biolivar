@@ -13,11 +13,11 @@ import { DropzoneArea } from 'material-ui-dropzone';
 
 const steps = ['Date Selection', 'Choose Index Type', 'Upload Data'];
 
-export default function HorizontalLinearStepperAOI({onSubmit, onIndexTypeChange, onStepChange, loading, setLoading}) {
+export default function HorizontalLinearStepperAOI({onSubmit, onIndexTypeChange, onStepChange, loading, setLoading, startDate, endDate, onDateChange}) {
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState({
-    startDate: '',
-    endDate: '',
+    startDate: startDate || '',
+    endDate: endDate || '',
     indexType: '',
     aoiDataFiles: []
   });
@@ -27,6 +27,15 @@ export default function HorizontalLinearStepperAOI({onSubmit, onIndexTypeChange,
       onStepChange(activeStep);
     }
   }, [activeStep, onStepChange]);
+
+  // Actualiza formData si cambian las props iniciales
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      startDate: startDate || '',
+      endDate: endDate || ''
+    }));
+  }, [startDate, endDate]);
 
   const handleNext = () => {
     setActiveStep((prevActiveStep) => prevActiveStep + 1);
@@ -61,6 +70,10 @@ export default function HorizontalLinearStepperAOI({onSubmit, onIndexTypeChange,
     setFormData({ ...formData, [event.target.name]: event.target.value });
     if (event.target.name === 'indexType' && typeof onIndexTypeChange === 'function') {
       onIndexTypeChange(event.target.value);
+    }
+    // Notificar cambio de fecha al padre
+    if ((event.target.name === 'startDate' || event.target.name === 'endDate') && typeof onDateChange === 'function') {
+      onDateChange(event.target.name, event.target.value);
     }
   };
 

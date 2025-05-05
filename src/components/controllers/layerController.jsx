@@ -4,7 +4,7 @@ import emitter from '@utils/events.utils';
 import { Card, CardContent, Checkbox, Icon, IconButton, List, ListItem, ListItemText, Slide, Tooltip, Typography } from '@material-ui/core';
 import { MuiThemeProvider, createTheme } from '@material-ui/core/styles';
 import { Collapse } from '@material-ui/core';
-
+import { Bar, Line } from 'react-chartjs-2';
 
 const GlobalStyles = createTheme({
     typography: {
@@ -115,6 +115,38 @@ const styles = {
     }
 };
 
+// Utilidad para crear bins y frecuencias para el histograma
+function getHistogramData(dataset, bins = 20) {
+    if (!dataset || dataset.length === 0) return { labels: [], counts: [] };
+    const min = Math.min(...dataset);
+    const max = Math.max(...dataset);
+    const step = (max - min) / bins;
+    const edges = Array.from({ length: bins + 1 }, (_, i) => min + i * step);
+    const counts = Array(bins).fill(0);
+    dataset.forEach(val => {
+        let idx = Math.floor((val - min) / step);
+        if (idx === bins) idx = bins - 1;
+        counts[idx]++;
+    });
+    const labels = edges.slice(0, -1).map((e, i) => `${e.toFixed(2)} - ${edges[i+1].toFixed(2)}`);
+    return { labels, counts };
+}
+
+// Utilidad para generar un array de fechas mensuales entre dos fechas (YYYY-MM-DD)
+function getDateRangeLabels(start, end) {
+    const result = [];
+    if (!start || !end) return result;
+    let current = new Date(start);
+    current.setDate(1); // Siempre el día 1
+    const endDate = new Date(end);
+    endDate.setDate(1); // Siempre el día 1
+    while (current.getFullYear() < endDate.getFullYear() || (current.getFullYear() === endDate.getFullYear() && current.getMonth() <= endDate.getMonth())) {
+        result.push(current.toISOString().slice(0, 7)); // YYYY-MM
+        current.setMonth(current.getMonth() + 1);
+    }
+    return result;
+}
+
 class LayerController extends React.Component {
     state = {
         open: false,
@@ -134,7 +166,13 @@ class LayerController extends React.Component {
         showSurfaceAnalysisLegend: false, // Nuevo estado para el subdesplegable
         showSurfaceInfo: false, // Estado para el info del subdesplegable
         selectedIndexType: 'NDVI', // Estado para el índice seleccionado
-        activeTool: null // Nuevo estado para saber qué herramienta está activa
+        activeTool: null, // Nuevo estado para saber qué herramienta está activa
+        showChart: true, // Estado para mostrar/ocultar la gráfica
+        showHistogram: false, // Nuevo estado para el histograma
+        dates: null, // Fechas del dataset temporal
+        temporalValues: null, // Valores del dataset temporal
+        showBigSurfaceChart: false, // Estado para mostrar el modal con la gráfica ampliada
+        bandDates: null // Fechas seleccionadas por el usuario en BandController
     }
 
     handleCloseClick = () => {
@@ -252,7 +290,8 @@ class LayerController extends React.Component {
                 visible: newLayerData.visible !== undefined ? newLayerData.visible : true, // Default to true if not provided
                 transparency: newLayerData.transparency !== undefined ? newLayerData.transparency : 100, // Default to 100 if not provided
                 min: newLayerData.min, // Store min value
-                max: newLayerData.max  // Store max value
+                max: newLayerData.max,  // Store max value
+                dataset: newLayerData.dataset // Store dataset if provided
             };
             this.setState((prevState) => ({
                 layers: [...prevState.layers, layerToAdd]
@@ -281,13 +320,28 @@ class LayerController extends React.Component {
             this.setState({ activeTool: tool });
         });
 
+        // Escuchar fechas seleccionadas por el usuario en BandController
+        this.bandDatesListener = emitter.addListener('setBandDates', (datesArray) => {
+            this.setState({ bandDates: datesArray });
+        });
+
         window.addEventListener('dragover', this.handleDragOver);
         window.addEventListener('drop', this.handleDrop);
     }
 
-    componentDidUpdate(prevProps) {
+    componentDidUpdate(prevProps, prevState) {
         if (this.props.map !== prevProps.map) {
             this.updateDatasets();
+        }
+        // Detectar si el dataset activo es temporal (array de objetos con Date y Value)
+        const visibleLayer = this.state.layers.find(layer => layer.visible);
+        if (visibleLayer && Array.isArray(visibleLayer.dataset) && visibleLayer.dataset.length > 0 && typeof visibleLayer.dataset[0] === 'object' && visibleLayer.dataset[0].Date && visibleLayer.dataset[0].Value) {
+            const dates = visibleLayer.dataset.map(item => item.Date);
+            const values = visibleLayer.dataset.map(item => item.Value);
+            // Solo actualiza si cambió
+            if (!this.state.dates || JSON.stringify(this.state.dates) !== JSON.stringify(dates)) {
+                this.setState({ dates, temporalValues: values });
+            }
         }
     }
 
@@ -458,6 +512,10 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
         this.setState({ datasets: {}, selected: {} });
     }
 
+    handleToggleHistogram = () => {
+        this.setState(prev => ({ showHistogram: !prev.showHistogram }));
+    };
+
     componentWillUnmount() {
         emitter.removeListener(this.openLayerControllerListener);
         emitter.removeListener(this.closeAllControllerListener);
@@ -466,6 +524,7 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
         emitter.removeListener(this.newLayerListener);  
         emitter.removeListener(this.indexTypeListener);
         emitter.removeListener(this.activeToolListener);
+        emitter.removeListener(this.bandDatesListener);
         window.removeEventListener('dragover', this.handleDragOver);
         window.removeEventListener('drop', this.handleDrop);
     }
@@ -508,6 +567,10 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
         const minText = isNaN(minValue) ? '' : minValue.toFixed(2);
         const maxValue = Number(visibleLayer && visibleLayer.max);
         const maxText = isNaN(maxValue) ? '' : maxValue.toFixed(2);
+
+        // Obtener el dataset del índice activo (simulación: deberías obtenerlo del backend o del estado real)
+        const dataset = (visibleLayer && visibleLayer.dataset) || [];
+        const histData = getHistogramData(dataset, 20);
 
         // Explicaciones y leyendas para cada índice
         const indexExplanations = {
@@ -690,6 +753,17 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
 
         const { activeTool } = this.state;
 
+        // En el render, para la gráfica temporal:
+        const fechasDataset = Array.isArray(dataset) && dataset.length > 0 && typeof dataset[0] === 'object' && dataset[0].Date
+            ? dataset.map(d => d.Date || '')
+            : null;
+        const valoresDataset = Array.isArray(dataset) && dataset.length > 0 && typeof dataset[0] === 'object' && dataset[0].Value !== undefined
+            ? dataset.map(d => d.Value)
+            : dataset;
+        const startDate = localStorage.getItem('startDate');
+        const endDate = localStorage.getItem('endDate');
+        const labels = getDateRangeLabels(startDate, endDate);
+
         return (
             <MuiThemeProvider theme={GlobalStyles}>
                 <Slide direction="left" in={this.state.open}>
@@ -745,135 +819,401 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
 
                 {/* Show the legend panel only if open is true and there is a visible layer */}
                 {this.state.open && visibleLayer && (
-                    <div style={{
-                        position: 'fixed',
-                        top: this.getLegendTopOffset(),
-                        right: '4px',
-                        width: '450px',
-                        background: 'white',
-                        borderRadius: '8px',
-                        boxShadow: '0 0 15px rgba(0,0,0,0.2)',
-                        zIndex: 500,
-                        overflow: 'hidden',
-                        fontFamily: 'Arial, sans-serif',
-                        margin: '5px',
-                        fontSize: '12px'
-                    }}>
-                        {/* Main Legend collapsible */}
-                        <div
+                    <fieldset
+                        style={{
+                            position: 'fixed',
+                            top: this.getLegendTopOffset(),
+                            right: '4px',
+                            width: '450px',
+                            background: 'white',
+                            borderRadius: '8px',
+                            boxShadow: '0 0 15px rgba(0,0,0,0.2)',
+                            zIndex: 500,
+                            fontFamily: 'Arial, sans-serif',
+                            margin: '5px',
+                            fontSize: '12px',
+                            maxHeight: 'calc(100vh - 100px)',
+                            padding: 0,
+                            border: '1px solid #ddd',
+                        }}
+                    >
+                        <legend
                             style={{
+                                width: '100%',
+                                height: '60px',
+                                overflowY: 'auto',
+                                background: '#f5f5f5',
+                                borderRadius: '8px 8px 0 0',
+                                padding: '10px 15px',
+                                marginBottom: 0,
+                                fontWeight: 700,
+                                fontSize: '15px',
                                 display: 'flex',
-                                justifyContent: 'space-between',
                                 alignItems: 'center',
-                                cursor: 'pointer',
-                                padding: '15px',
-                                backgroundColor: '#f5f5f5',
-                                borderBottom: this.state.legendExpanded ? '1px solid #ddd' : 'none'
+                                justifyContent: 'space-between',
+                                borderBottom: this.state.legendExpanded ? '1px solid #ddd' : 'none',
                             }}
                         >
-                            <div style={{ display: 'flex', alignItems: 'center' }} onClick={this.toggleLegend}>
+                            <span style={{display: 'flex', alignItems: 'center'}}>
                                 <Typography variant="body2"><strong><b>Leyenda</b></strong></Typography>
-                            </div>
+                            </span>
                             <Icon onClick={this.toggleLegend}>{this.state.legendExpanded ? 'expand_less' : 'expand_more'}</Icon>
+                        </legend>
+                        <div
+                            className="custom-scrollbar"
+                            style={{
+                                maxHeight: 'calc(100vh - 180px)',
+                                overflowY: 'auto',
+                                overflowX: 'hidden',
+                                padding: '0 15px 15px 15px',
+                                scrollbarWidth: 'thin',
+                                scrollbarColor: '#81c784 #e0e0e0',
+                            }}
+                        >
+                            {/* Estilos para scroll bonito en Chrome/Safari/Edge */}
+                            <style>{`
+                                .custom-scrollbar::-webkit-scrollbar {
+                                    width: 10px;
+                                    background: #e0e0e0;
+                                    border-radius: 8px;
+                                }
+                                .custom-scrollbar::-webkit-scrollbar-thumb {
+                                    background: #81c784;
+                                    border-radius: 8px;
+                                }
+                            `}</style>
+                            <Collapse in={this.state.legendExpanded} timeout="auto" unmountOnExit>
+                                <div style={{ padding: 0 }}>
+                                    {/* Cambios en la vegetación */}
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            cursor: activeTool === 'vegChange' ? 'pointer' : 'not-allowed',
+                                            padding: '10px 0',
+                                            borderBottom: '1px solid #eee',
+                                            opacity: activeTool === 'surfaceAnalysis' ? 0.4 : 1
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                            <Typography variant="body2"><strong><b>Cambios en la vegetación</b></strong></Typography>
+                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.setState({ infoOpen: !this.state.infoOpen }); }} style={{ marginLeft: 6 }} disabled={activeTool === 'surfaceAnalysis'}>
+                                                <Icon style={{ fontSize: 18, color: '#1976d2' }}>info</Icon>
+                                            </IconButton>
+                                        </div>
+                                        <Icon onClick={e => { if (activeTool === 'vegChange') { e.stopPropagation(); this.toggleVegetationLegend(); } }}>{this.state.showVegetationLegend ? 'expand_less' : 'expand_more'}</Icon>
+                                    </div>
+                                    {/* Info collapsible */}
+                                    <Collapse in={this.state.infoOpen} timeout="auto" unmountOnExit>
+                                        <div style={{ padding: '12px 16px', background: '#f9f9f9', borderRadius: 8, margin: '8px 0' }}>
+                                            <Typography variant="subtitle2" gutterBottom><b>¿Para qué sirve esta funcionalidad?</b></Typography>
+                                            <Typography variant="body2" style={{ textAlign: 'justify' }}>
+                                                Esta funcionalidad te muestra cómo ha cambiado la vegetación o el suelo en un lugar entre dos fechas. Usa imágenes de satélite Landsat para comparar si hay más o menos suelo desnudo, pasto o árboles, y si están más verdes o secos. <br /><br />
+                                                Además, también puede mostrar si el suelo está más seco o tiene más agua, gracias a otros indicadores especiales. Todo esto se ve en un mapa con colores, para que entiendas rápido qué zonas han cambiado. Las zonas en rojo o negativas son zonas donde el índice calculado ha disminuido, es decir, la cobertura vegetal está en un peor estado que la fecha inicial del análisis. Las zonas verdes o positivas indican que la cobertura ha mejorado respecto al inicio del análisis.
+                                            </Typography>
+                                        </div>
+                                    </Collapse>
+                                    <Collapse in={this.state.showVegetationLegend} timeout="auto" unmountOnExit>
+                                        <div style={{ padding: '10px 0', textAlign: 'center' }}>
+                                            <Typography>Tasa de cambio del índice</Typography>
+                                            <div style={{
+                                                width: '100%',
+                                                height: '20px',
+                                                background: 'linear-gradient(to right, red, white, green)',
+                                                margin: '10px 0',
+                                                borderRadius: '5px'
+                                            }}></div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                <Typography variant="body2">{minText}</Typography>
+                                                <Typography variant="body2">{maxText}</Typography>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                <Typography variant="body2">Disminución</Typography>
+                                                <Typography variant="body2">Aumento</Typography>
+                                            </div>
+                                            {/* Mostrar fechas guardadas */}
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                                <Typography variant="body2">
+                                                    {localStorage.getItem('startDate') ? `Inicio: ${localStorage.getItem('startDate')}` : 'Inicio: N/A'}
+                                                </Typography>
+                                                <Typography variant="body2">
+                                                    {localStorage.getItem('endDate') ? `Fin: ${localStorage.getItem('endDate')}` : 'Fin: N/A'}
+                                                </Typography>
+                                            </div>
+                                        </div>
+                                    </Collapse>
+
+                                    {/* Nuevo subdesplegable: Análisis de la superficie */}
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            cursor: activeTool === 'surfaceAnalysis' ? 'pointer' : 'not-allowed',
+                                            padding: '10px 0',
+                                            borderBottom: '1px solid #eee',
+                                            opacity: activeTool === 'vegChange' ? 0.4 : 1
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                            <Typography variant="body2"><strong><b>Análisis de la superficie</b></strong></Typography>
+                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.handleSurfaceInfoClick(); }} style={{ marginLeft: 6 }} disabled={activeTool === 'vegChange'}>
+                                                <Icon style={{ fontSize: 18, color: '#1976d2' }}>info</Icon>
+                                            </IconButton>
+                                        </div>
+                                        <Icon onClick={e => { if (activeTool === 'surfaceAnalysis') { e.stopPropagation(); this.toggleSurfaceAnalysisLegend(); } }}>{this.state.showSurfaceAnalysisLegend ? 'expand_less' : 'expand_more'}</Icon>
+                                    </div>
+                                    <Collapse in={this.state.showSurfaceInfo} timeout="auto" unmountOnExit>
+                                        <div style={{ padding: '12px 16px', background: '#f9f9f9', borderRadius: 8, margin: '8px 0' }}>
+                                            <Typography variant="subtitle2" gutterBottom><b>¿Para qué sirve esta funcionalidad con el índice seleccionado?</b></Typography>
+                                            <Typography variant="body2" style={{ textAlign: 'justify' }}>
+                                                {indexExplanations[this.state.selectedIndexType] || 'Selecciona un índice para ver la explicación.'}
+                                            </Typography>
+                                        </div>
+                                    </Collapse>
+                                    <Collapse in={this.state.showSurfaceAnalysisLegend} timeout="auto" unmountOnExit>
+                                        <div style={{ padding: '10px 0', textAlign: 'center', maxHeight: '250px', overflowY: 'auto' }}>
+                                            {indexLegends[this.state.selectedIndexType] || <Typography variant="body2">Selecciona un índice para ver la leyenda.</Typography>}
+                                            {/* Botón + simple, pequeño y texto 'ampliar gráfica', centrados debajo de la gráfica */}
+                                            {dataset && dataset.length > 0 && (
+                                                <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                                    <button
+                                                        style={{
+                                                            background: this.state.showHistogram
+                                                                ? 'linear-gradient(90deg, #43a047 0%, #a8e063 100%)'
+                                                                : 'linear-gradient(90deg, #388e3c 0%, #a8e063 100%)',
+                                                            border: 'none',
+                                                            borderRadius: 24,
+                                                            padding: '8px 28px',
+                                                            cursor: 'pointer',
+                                                            fontWeight: 700,
+                                                            fontSize: 16,
+                                                            color: '#fff',
+                                                            boxShadow: '0 2px 8px rgba(67, 160, 71, 0.12)',
+                                                            outline: 'none',
+                                                            marginBottom: 8,
+                                                            letterSpacing: 0.5,
+                                                            transition: 'background 0.2s, box-shadow 0.2s',
+                                                            marginTop: 8
+                                                        }}
+                                                        onClick={this.handleToggleHistogram}
+                                                        onMouseOver={e => e.currentTarget.style.background = 'linear-gradient(90deg, #388e3c 0%, #56ab2f 100%)'}
+                                                        onMouseOut={e => e.currentTarget.style.background = this.state.showHistogram
+                                                            ? 'linear-gradient(90deg, #43a047 0%, #a8e063 100%)'
+                                                            : 'linear-gradient(90deg, #388e3c 0%, #a8e063 100%)'}
+                                                    >
+                                                        {this.state.showHistogram ? 'Ocultar histograma' : 'Ver histograma'}
+                                                    </button>
+                                                    <Collapse in={this.state.showHistogram} timeout="auto" unmountOnExit>
+                                                        <div style={{ marginTop: 8, width: '100%' }}>
+                                                            <Typography variant="subtitle2" style={{ fontWeight: 600, color: '#1976d2', marginBottom: 4 }}>Histograma del índice</Typography>
+                                                            <Bar
+                                                                data={{
+                                                                    labels: histData.labels,
+                                                                    datasets: [{
+                                                                        label: 'Frecuencia',
+                                                                        data: histData.counts,
+                                                                        backgroundColor: 'rgba(25, 118, 210, 0.35)',
+                                                                        borderColor: '#1976d2',
+                                                                        borderWidth: 1.5,
+                                                                        borderRadius: 6
+                                                                    }]
+                                                                }}
+                                                                options={{
+                                                                    responsive: true,
+                                                                    plugins: { legend: { display: false } },
+                                                                    scales: {
+                                                                        x: { title: { display: true, text: 'Valor del índice', color: '#1976d2', font: { weight: 600 } } },
+                                                                        y: { title: { display: true, text: 'Frecuencia', color: '#1976d2', font: { weight: 600 } } }
+                                                                    }
+                                                                }}
+                                                            />
+                                                            {/* Separador visual entre las dos gráficas */}
+                                                            <div style={{ marginTop: 24 }} />
+                                                            {/* Gráfica de línea NDVI temporal */}
+                                                            {dataset && dataset.length > 0 && (
+                                                                <div style={{ width: '100%', height: 200, padding: '0 8px', position: 'relative' }}>
+                                                                    <Line
+                                                                        data={{
+                                                                            labels,
+                                                                            datasets: [{
+                                                                                label: 'NDVI',
+                                                                                data: valoresDataset,
+                                                                                borderColor: '#1b5e20',
+                                                                                backgroundColor: 'transparent',
+                                                                                fill: false,
+                                                                                tension: 0,
+                                                                                pointRadius: 2,
+                                                                                pointHoverRadius: 4,
+                                                                                pointBackgroundColor: '#1b5e20',
+                                                                                pointBorderColor: '#1b5e20',
+                                                                                borderWidth: 1.5
+                                                                            }]
+                                                                        }}
+                                                                        options={{
+                                                                            responsive: true,
+                                                                            maintainAspectRatio: true,
+                                                                            plugins: { legend: { display: true } },
+                                                                            scales: {
+                                                                                x: {
+                                                                                    title: { display: true, text: (this.state.bandDates && this.state.bandDates.length === (this.state.temporalValues ? this.state.temporalValues.length : 0)) ? 'Fecha seleccionada' : (this.state.dates && this.state.dates.length === (this.state.temporalValues ? this.state.temporalValues.length : 0)) ? 'Fecha' : 'Índice temporal', color: '#222', font: { style: 'italic' } },
+                                                                                    ticks: {
+                                                                                        maxRotation: 60,
+                                                                                        minRotation: 60,
+                                                                                        font: { size: 12 },
+                                                                                        callback: function(value, index, values) {
+                                                                                            // Si el label es una fecha tipo '2023-01-01', mostrar solo '2023-01'
+                                                                                            const label = this.getLabelForValue(value);
+                                                                                            if (typeof label === 'string' && label.match(/^\d{4}-\d{2}/)) {
+                                                                                                return label.substring(0, 7);
+                                                                                            }
+                                                                                            return label;
+                                                                                        }
+                                                                                    }
+                                                                                },
+                                                                                y: {
+                                                                                    title: { display: true, text: 'NDVI value', color: '#222', font: { style: 'italic' } },
+                                                                                    min: 0, max: 1,
+                                                                                    ticks: { font: { size: 12 } }
+                                                                                }
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                    {/* Botón + simple, pequeño y texto 'ampliar gráfica', centrados debajo de la gráfica */}
+                                                                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: 16 }}>
+                                                                        <button
+                                                                            onClick={() => this.setState({ showBigSurfaceChart: true })}
+                                                                            style={{
+                                                                                width: 30,
+                                                                                height: 30,
+                                                                                borderRadius: '50%',
+                                                                                background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                                                                                color: 'white',
+                                                                                border: 'none',
+                                                                                fontSize: 22,
+                                                                                display: 'flex',
+                                                                                alignItems: 'center',
+                                                                                justifyContent: 'center',
+                                                                                cursor: 'pointer',
+                                                                                boxShadow: '0 2px 8px rgba(67, 233, 123, 0.12)',
+                                                                                margin: 0,
+                                                                                padding: 0
+                                                                            }}
+                                                                            aria-label="Ampliar gráfica"
+                                                                        >
+                                                                            <span style={{
+                                                                                fontWeight: 'bold',
+                                                                                fontSize: 26,
+                                                                                lineHeight: '40px',
+                                                                                width: '100%',
+                                                                                textAlign: 'center',
+                                                                                display: 'flex',
+                                                                                alignItems: 'center',
+                                                                                justifyContent: 'center',
+                                                                                position: 'relative',
+                                                                                top: '-1px'
+                                                                            }}>+</span>
+                                                                        </button>
+                                                                        <span style={{ color: '#2e7d32', fontSize: 15, fontWeight: 500, userSelect: 'none', marginLeft: 10 }}>ampliar gráfica</span>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </Collapse>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </Collapse>
+                                </div>
+                            </Collapse>
                         </div>
+                    </fieldset>
+                )}
 
-                        <Collapse in={this.state.legendExpanded} timeout="auto" unmountOnExit>
-                            <div style={{ padding: '15px' }}>
-                                {/* Cambios en la vegetación */}
-                                <div
-                                    style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                        cursor: activeTool === 'vegChange' ? 'pointer' : 'not-allowed',
-                                        padding: '10px 0',
-                                        borderBottom: '1px solid #eee',
-                                        opacity: activeTool === 'surfaceAnalysis' ? 0.4 : 1
-                                    }}
-                                >
-                                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                                        <Typography variant="body2"><strong><b>Cambios en la vegetación</b></strong></Typography>
-                                        <IconButton size="small" onClick={e => { e.stopPropagation(); this.setState({ infoOpen: !this.state.infoOpen }); }} style={{ marginLeft: 6 }} disabled={activeTool === 'surfaceAnalysis'}>
-                                            <Icon style={{ fontSize: 18, color: '#1976d2' }}>info</Icon>
-                                        </IconButton>
-                                    </div>
-                                    <Icon onClick={e => { if (activeTool === 'vegChange') { e.stopPropagation(); this.toggleVegetationLegend(); } }}>{this.state.showVegetationLegend ? 'expand_less' : 'expand_more'}</Icon>
-                                </div>
-                                {/* Info collapsible */}
-                                <Collapse in={this.state.infoOpen} timeout="auto" unmountOnExit>
-                                    <div style={{ padding: '12px 16px', background: '#f9f9f9', borderRadius: 8, margin: '8px 0' }}>
-                                        <Typography variant="subtitle2" gutterBottom><b>¿Para qué sirve esta funcionalidad?</b></Typography>
-                                        <Typography variant="body2" style={{ textAlign: 'justify' }}>
-                                            Esta funcionalidad te muestra cómo ha cambiado la vegetación o el suelo en un lugar entre dos fechas. Usa imágenes de satélite Landsat para comparar si hay más o menos suelo desnudo, pasto o árboles, y si están más verdes o secos. <br /><br />
-                                            Además, también puede mostrar si el suelo está más seco o tiene más agua, gracias a otros indicadores especiales. Todo esto se ve en un mapa con colores, para que entiendas rápido qué zonas han cambiado. Las zonas en rojo o negativas son zonas donde el índice calculado ha disminuido, es decir, la cobertura vegetal está en un peor estado que la fecha inicial del análisis. Las zonas verdes o positivas indican que la cobertura ha mejorado respecto al inicio del análisis.
-                                        </Typography>
-                                    </div>
-                                </Collapse>
-                                <Collapse in={this.state.showVegetationLegend} timeout="auto" unmountOnExit>
-                                    <div style={{ padding: '10px 0', textAlign: 'center' }}>
-                                        <Typography>Tasa de cambio del índice</Typography>
-                                        <div style={{
-                                            width: '100%',
-                                            height: '20px',
-                                            background: 'linear-gradient(to right, red, white, green)',
-                                            margin: '10px 0',
-                                            borderRadius: '5px'
-                                        }}></div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <Typography variant="body2">{minText}</Typography>
-                                            <Typography variant="body2">{maxText}</Typography>
-                                        </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <Typography variant="body2">Disminución</Typography>
-                                            <Typography variant="body2">Aumento</Typography>
-                                        </div>
-                                        {/* Mostrar fechas guardadas */}
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                                            <Typography variant="body2">
-                                                {localStorage.getItem('startDate') ? `Inicio: ${localStorage.getItem('startDate')}` : 'Inicio: N/A'}
-                                            </Typography>
-                                            <Typography variant="body2">
-                                                {localStorage.getItem('endDate') ? `Fin: ${localStorage.getItem('endDate')}` : 'Fin: N/A'}
-                                            </Typography>
-                                        </div>
-                                    </div>
-                                </Collapse>
-
-                                {/* Nuevo subdesplegable: Análisis de la superficie */}
-                                <div
-                                    style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                        cursor: activeTool === 'surfaceAnalysis' ? 'pointer' : 'not-allowed',
-                                        padding: '10px 0',
-                                        borderBottom: '1px solid #eee',
-                                        opacity: activeTool === 'vegChange' ? 0.4 : 1
-                                    }}
-                                >
-                                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                                        <Typography variant="body2"><strong><b>Análisis de la superficie</b></strong></Typography>
-                                        <IconButton size="small" onClick={e => { e.stopPropagation(); this.handleSurfaceInfoClick(); }} style={{ marginLeft: 6 }} disabled={activeTool === 'vegChange'}>
-                                            <Icon style={{ fontSize: 18, color: '#1976d2' }}>info</Icon>
-                                        </IconButton>
-                                    </div>
-                                    <Icon onClick={e => { if (activeTool === 'surfaceAnalysis') { e.stopPropagation(); this.toggleSurfaceAnalysisLegend(); } }}>{this.state.showSurfaceAnalysisLegend ? 'expand_less' : 'expand_more'}</Icon>
-                                </div>
-                                <Collapse in={this.state.showSurfaceInfo} timeout="auto" unmountOnExit>
-                                    <div style={{ padding: '12px 16px', background: '#f9f9f9', borderRadius: 8, margin: '8px 0' }}>
-                                        <Typography variant="subtitle2" gutterBottom><b>¿Para qué sirve esta funcionalidad con el índice seleccionado?</b></Typography>
-                                        <Typography variant="body2" style={{ textAlign: 'justify' }}>
-                                            {indexExplanations[this.state.selectedIndexType] || 'Selecciona un índice para ver la explicación.'}
-                                        </Typography>
-                                    </div>
-                                </Collapse>
-                                <Collapse in={this.state.showSurfaceAnalysisLegend} timeout="auto" unmountOnExit>
-                                    <div style={{ padding: '10px 0', textAlign: 'center' }}>
-                                        {indexLegends[this.state.selectedIndexType] || <Typography variant="body2">Selecciona un índice para ver la leyenda.</Typography>}
-                                    </div>
-                                </Collapse>
-                            </div>
-                        </Collapse>
+                {/* Modal para ampliar la gráfica de superficie */}
+                {this.state.showBigSurfaceChart && (
+                    <div
+                        onClick={() => this.setState({ showBigSurfaceChart: false })}
+                        style={{
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            width: '100vw',
+                            height: '100vh',
+                            background: 'rgba(0,0,0,0.7)',
+                            zIndex: 3000,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                        }}
+                    >
+                        <div
+                            style={{
+                                background: 'white',
+                                borderRadius: 16,
+                                boxShadow: '0 8px 32px rgba(33,150,243,0.25)',
+                                padding: 32,
+                                minWidth: 600,
+                                minHeight: 400,
+                                maxWidth: '90vw',
+                                maxHeight: '90vh',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <Line
+                                data={{
+                                    labels,
+                                    datasets: [{
+                                        label: 'NDVI',
+                                        data: valoresDataset,
+                                        borderColor: '#1b5e20',
+                                        backgroundColor: 'transparent',
+                                        fill: false,
+                                        tension: 0,
+                                        pointRadius: 2,
+                                        pointHoverRadius: 4,
+                                        pointBackgroundColor: '#1b5e20',
+                                        pointBorderColor: '#1b5e20',
+                                        borderWidth: 1.5
+                                    }]
+                                }}
+                                options={{
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    plugins: { legend: { display: true } },
+                                    scales: {
+                                        x: {
+                                            title: { display: true, text: (this.state.bandDates && this.state.bandDates.length === (this.state.temporalValues ? this.state.temporalValues.length : 0)) ? 'Fecha seleccionada' : (this.state.dates && this.state.dates.length === (this.state.temporalValues ? this.state.temporalValues.length : 0)) ? 'Fecha' : 'Índice temporal', color: '#222', font: { style: 'italic' } },
+                                            ticks: {
+                                                maxRotation: 60,
+                                                minRotation: 60,
+                                                font: { size: 16 },
+                                                callback: function(value, index, values) {
+                                                    const label = this.getLabelForValue(value);
+                                                    if (typeof label === 'string' && label.match(/^\d{4}-\d{2}/)) {
+                                                        return label.substring(0, 7);
+                                                    }
+                                                    return label;
+                                                }
+                                            }
+                                        },
+                                        y: {
+                                            title: { display: true, text: 'NDVI value', color: '#222', font: { style: 'italic' } },
+                                            min: 0, max: 1,
+                                            ticks: { font: { size: 16 } }
+                                        }
+                                    }
+                                }}
+                                height={400}
+                                width={800}
+                            />
+                        </div>
                     </div>
                 )}
             </MuiThemeProvider>

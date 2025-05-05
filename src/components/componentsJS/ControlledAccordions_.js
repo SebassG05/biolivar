@@ -150,7 +150,7 @@ const ControlledAccordions = forwardRef(function ControlledAccordions({ onSubmit
       data.append('startDate', formData.startDate);
       data.append('endDate', formData.endDate);
 
-      const apiUrl = 'http://127.0.0.1:5005/api/vegetation_index_change_inspector'; // Use local server
+      const apiUrl = 'http://127.0.0.1:500/api/vegetation_index_change_inspector'; // Use local server
       console.log('Calling API:', apiUrl);
       const response = await fetch(apiUrl, {
         method: 'POST',

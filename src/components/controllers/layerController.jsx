@@ -132,6 +132,38 @@ function getHistogramData(dataset, bins = 20) {
     return { labels, counts };
 }
 
+// Paleta NDVI estándar (puedes ajustarla si usas otra)
+const ndviPalette = [
+    '#a50026', '#d73027', '#f46d43', '#fdae61', '#fee08b',
+    '#ffffbf', '#d9ef8b', '#a6d96a', '#66bd63', '#1a9850', '#006837'
+];
+
+// Función para interpolar la paleta según el número de bins
+function getPaletteForBins(palette, bins) {
+    if (bins <= palette.length) {
+        // Si hay menos bins que colores, recorta la paleta
+        const step = palette.length / bins;
+        return Array.from({ length: bins }, (_, i) => palette[Math.floor(i * step)]);
+    } else {
+        // Si hay más bins que colores, interpola linealmente
+        const hexToRgb = hex => hex.length === 7 ? [1, 3, 5].map(i => parseInt(hex.substr(i, 2), 16)) : [0,0,0];
+        const rgbToHex = rgb => '#' + rgb.map(x => x.toString(16).padStart(2, '0')).join('');
+        const out = [];
+        for (let i = 0; i < bins; i++) {
+            const t = i / (bins - 1);
+            const idx = t * (palette.length - 1);
+            const idx0 = Math.floor(idx);
+            const idx1 = Math.ceil(idx);
+            const frac = idx - idx0;
+            const rgb0 = hexToRgb(palette[idx0]);
+            const rgb1 = hexToRgb(palette[idx1]);
+            const rgb = rgb0.map((c, j) => Math.round(c + (rgb1[j] - c) * frac));
+            out.push(rgbToHex(rgb));
+        }
+        return out;
+    }
+}
+
 // Utilidad para generar un array de fechas mensuales entre dos fechas (YYYY-MM-DD)
 function getDateRangeLabels(start, end) {
     const result = [];
@@ -146,6 +178,35 @@ function getDateRangeLabels(start, end) {
     }
     return result;
 }
+
+// Paletas reales usadas en el backend para cada índice
+const indexPalettes = {
+    NDVI: [
+        '#a50026', '#d73027', '#f46d43', '#fdae61', '#fee08b',
+        '#ffffbf', '#d9ef8b', '#a6d96a', '#66bd63', '#1a9850', '#006837'
+    ],
+    EVI: [
+        '#a50026', '#d73027', '#f46d43', '#fdae61', '#fee08b',
+        '#ffffbf', '#d9ef8b', '#a6d96a', '#66bd63', '#1a9850', '#006837'
+    ],
+    GNDVI: [
+        '#a50026', '#d73027', '#f46d43', '#fdae61', '#fee08b',
+        '#ffffbf', '#d9ef8b', '#a6d96a', '#66bd63', '#1a9850', '#006837'
+    ],
+    NDMI: [
+        '#f7e7c3', '#d9b77c', '#a2c8a3', '#51a4c5', '#0050ef', '#4b0082'
+    ],
+    MSI: [
+        '#f7e7c3', '#d9b77c', '#a2c8a3', '#51a4c5', '#0050ef', '#4b0082'
+    ],
+    BI: [
+        '#ffffff', '#e6e6e6', '#cccccc', '#b3b3b3', '#999999', '#808080', '#666666', '#4d4d4d', '#333333', '#1a1a1a', '#000000'
+    ],
+    SAVI: [
+        '#a50026', '#d73027', '#f46d43', '#fdae61', '#fee08b',
+        '#ffffbf', '#d9ef8b', '#a6d96a', '#66bd63', '#1a9850', '#006837'
+    ]
+};
 
 class LayerController extends React.Component {
     state = {
@@ -1028,8 +1089,8 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                                                                     datasets: [{
                                                                         label: 'Frecuencia',
                                                                         data: histData.counts,
-                                                                        backgroundColor: 'rgba(67, 160, 71, 0.35)',
-                                                                        borderColor: '#43a047',
+                                                                        backgroundColor: getPaletteForBins(indexPalettes[this.state.selectedIndexType] || ndviPalette, histData.counts.length),
+                                                                        borderColor: getPaletteForBins(indexPalettes[this.state.selectedIndexType] || ndviPalette, histData.counts.length),
                                                                         borderWidth: 1.5,
                                                                         borderRadius: 6
                                                                     }]

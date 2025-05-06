@@ -284,18 +284,20 @@ class LayerController extends React.Component {
 
         // Modify the newLayer listener to store min/max if provided
         this.newLayerListener = emitter.addListener('newLayer', (newLayerData) => {
-            // Assume newLayerData might contain { id, visible, transparency, min, max, ... }
-            const layerToAdd = {
-                id: newLayerData.id,
-                visible: newLayerData.visible !== undefined ? newLayerData.visible : true, // Default to true if not provided
-                transparency: newLayerData.transparency !== undefined ? newLayerData.transparency : 100, // Default to 100 if not provided
-                min: newLayerData.min, // Store min value
-                max: newLayerData.max,  // Store max value
-                dataset: newLayerData.dataset // Store dataset if provided
-            };
-            this.setState((prevState) => ({
-                layers: [...prevState.layers, layerToAdd]
-            }));
+            // Evitar duplicados: solo agregar si no existe ya una capa con ese id
+            this.setState((prevState) => {
+                const exists = prevState.layers.some(layer => layer.id === newLayerData.id);
+                if (exists) return null;
+                const layerToAdd = {
+                    id: newLayerData.id,
+                    visible: newLayerData.visible !== undefined ? newLayerData.visible : true, // Default to true if not provided
+                    transparency: newLayerData.transparency !== undefined ? newLayerData.transparency : 100, // Default to 100 if not provided
+                    min: newLayerData.min, // Store min value
+                    max: newLayerData.max,  // Store max value
+                    dataset: newLayerData.dataset // Store dataset if provided
+                };
+                return { layers: [...prevState.layers, layerToAdd] };
+            });
         });
 
         this.closeAllControllerListener = emitter.addListener('closeAllController', () => {

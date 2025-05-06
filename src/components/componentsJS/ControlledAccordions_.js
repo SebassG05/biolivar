@@ -33,12 +33,17 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+const getToday = () => {
+  const today = new Date();
+  return today.toISOString().split('T')[0];
+};
+
 const ControlledAccordions = forwardRef(function ControlledAccordions({ onSubmit, onIndexTypeChange }, ref) {
   const classes = useStyles();
   const [expanded, setExpanded] = useState(false);
   const [formData, setFormData] = useState({
-    startDate: "2000-04-14",
-    endDate: "2024-05-14",
+    startDate: getToday(),
+    endDate: getToday(),
     indexType: 'NDVI',
     aoiDataFiles: []
   });
@@ -140,6 +145,12 @@ const ControlledAccordions = forwardRef(function ControlledAccordions({ onSubmit
       emitter.emit('showSnackbar', 'error', 'Debes seleccionar fechas de inicio y fin');
       return;
     }
+    // Validación de formato de fecha
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(formData.startDate) || !dateRegex.test(formData.endDate)) {
+      emitter.emit('showSnackbar', 'error', 'Formato de fecha inválido. Usa YYYY-MM-DD.');
+      return;
+    }
     try {
       setLoading(true);
       setTimer(0);
@@ -149,6 +160,12 @@ const ControlledAccordions = forwardRef(function ControlledAccordions({ onSubmit
       data.append('indexType', formData.indexType);
       data.append('startDate', formData.startDate);
       data.append('endDate', formData.endDate);
+
+      // LOG para depuración
+      console.log('startDate:', formData.startDate);
+      console.log('endDate:', formData.endDate);
+      console.log('indexType:', formData.indexType);
+      console.log('aoiDataFiles:', formData.aoiDataFiles);
 
       const apiUrl = 'http://127.0.0.1:500/api/vegetation_index_change_inspector'; // Use local server
       console.log('Calling API:', apiUrl);

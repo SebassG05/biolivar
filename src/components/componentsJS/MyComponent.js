@@ -69,7 +69,7 @@ const MyComponent = () => {
         };
 
         try {
-            const response = await fetch('http://localhost:5004/predict', {
+            const response = await fetch('http://localhost:500/predict', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

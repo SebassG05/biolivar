@@ -764,6 +764,18 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
         const endDate = localStorage.getItem('endDate');
         const labels = getDateRangeLabels(startDate, endDate);
 
+        // Calcular min y max dinámicamente para el eje Y de la gráfica de línea
+        let minY = 0, maxY = 1;
+        if (valoresDataset && valoresDataset.length > 0) {
+            minY = Math.min(...valoresDataset);
+            maxY = Math.max(...valoresDataset);
+            // Si min y max son iguales, ajusta para que la gráfica no sea plana
+            if (minY === maxY) {
+                minY = minY - 0.1;
+                maxY = maxY + 0.1;
+            }
+        }
+
         return (
             <MuiThemeProvider theme={GlobalStyles}>
                 <Slide direction="left" in={this.state.open}>
@@ -1007,15 +1019,15 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                                                     </button>
                                                     <Collapse in={this.state.showHistogram} timeout="auto" unmountOnExit>
                                                         <div style={{ marginTop: 8, width: '100%' }}>
-                                                            <Typography variant="subtitle2" style={{ fontWeight: 600, color: '#1976d2', marginBottom: 4 }}>Histograma del índice</Typography>
+                                                            <Typography variant="subtitle2" style={{ fontWeight: 600, color: '#43a047', marginBottom: 4 }}>Histograma del índice</Typography>
                                                             <Bar
                                                                 data={{
-                                                                    labels: histData.labels,
+                                                                    labels: histData.labels, // Deja las etiquetas originales
                                                                     datasets: [{
                                                                         label: 'Frecuencia',
                                                                         data: histData.counts,
-                                                                        backgroundColor: 'rgba(25, 118, 210, 0.35)',
-                                                                        borderColor: '#1976d2',
+                                                                        backgroundColor: 'rgba(67, 160, 71, 0.35)',
+                                                                        borderColor: '#43a047',
                                                                         borderWidth: 1.5,
                                                                         borderRadius: 6
                                                                     }]
@@ -1024,8 +1036,14 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                                                                     responsive: true,
                                                                     plugins: { legend: { display: false } },
                                                                     scales: {
-                                                                        x: { title: { display: true, text: 'Valor del índice', color: '#1976d2', font: { weight: 600 } } },
-                                                                        y: { title: { display: true, text: 'Frecuencia', color: '#1976d2', font: { weight: 600 } } }
+                                                                        x: {
+                                                                            title: { display: true, text: 'Valor del índice', color: '#43a047', font: { weight: 600 } },
+                                                                            ticks: { display: false, color: '#43a047' } // Oculta solo los valores del eje X
+                                                                        },
+                                                                        y: {
+                                                                            title: { display: true, text: 'Frecuencia', color: '#43a047', font: { weight: 600 } },
+                                                                            ticks: { color: '#43a047' }
+                                                                        }
                                                                     }
                                                                 }}
                                                             />
@@ -1038,7 +1056,7 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                                                                         data={{
                                                                             labels,
                                                                             datasets: [{
-                                                                                label: 'NDVI',
+                                                                                label: this.state.selectedIndexType,
                                                                                 data: valoresDataset,
                                                                                 borderColor: '#1b5e20',
                                                                                 backgroundColor: 'transparent',
@@ -1073,8 +1091,8 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                                                                                     }
                                                                                 },
                                                                                 y: {
-                                                                                    title: { display: true, text: 'NDVI value', color: '#222', font: { style: 'italic' } },
-                                                                                    min: 0, max: 1,
+                                                                                    title: { display: true, text: `${this.state.selectedIndexType} value`, color: '#222', font: { style: 'italic' } },
+                                                                                    min: minY, max: maxY,
                                                                                     ticks: { font: { size: 12 } }
                                                                                 }
                                                                             }
@@ -1170,7 +1188,7 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                                 data={{
                                     labels,
                                     datasets: [{
-                                        label: 'NDVI',
+                                        label: this.state.selectedIndexType,
                                         data: valoresDataset,
                                         borderColor: '#1b5e20',
                                         backgroundColor: 'transparent',
@@ -1204,8 +1222,8 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                                             }
                                         },
                                         y: {
-                                            title: { display: true, text: 'NDVI value', color: '#222', font: { style: 'italic' } },
-                                            min: 0, max: 1,
+                                            title: { display: true, text: `${this.state.selectedIndexType} value`, color: '#222', font: { style: 'italic' } },
+                                            min: minY, max: maxY,
                                             ticks: { font: { size: 16 } }
                                         }
                                     }

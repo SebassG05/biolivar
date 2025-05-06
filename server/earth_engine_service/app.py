@@ -352,36 +352,48 @@ def get_map_url():
 @app.route('/api/vegetation_index_change_inspector', methods=['POST'])
 def vegetation_index_change_inspector():
     try:
+        # --- DEBUG LOGGING ---
+        print('request.files:', request.files)
+        print('request.form:', request.form)
+        # --- END DEBUG LOGGING ---
+
         # Validación de inputs
         if 'aoiDataFiles' not in request.files or 'indexType' not in request.form:
+            print('Faltan datos requeridos (aoiDataFiles, indexType)')
             return jsonify({"error": "Faltan datos requeridos (aoiDataFiles, indexType)"}), 400
 
         aoi_file = request.files['aoiDataFiles']
-        band = request.form['indexType']
+        band = request.form.get('indexType')
         start_date = request.form.get('startDate')
         end_date = request.form.get('endDate')
 
         # Validación de fechas
         if not start_date or not end_date:
+            print('Faltan fechas (startDate, endDate)')
             return jsonify({"error": "Faltan fechas (startDate, endDate)"}), 400
 
         try:
             start_year = int(start_date[:4])
             end_year = int(end_date[:4])
             if start_year > end_year or (start_year == end_year and start_date[5:] > end_date[5:]):
+                print('El rango de fechas es inválido')
                 return jsonify({"error": "El rango de fechas es inválido: la fecha de inicio debe ser anterior a la fecha de fin."}), 400
         except ValueError:
+            print('Formato de fecha inválido')
             return jsonify({"error": "Formato de fecha inválido. Use el formato YYYY-MM-DD."}), 400
 
         # Procesamiento del archivo AOI
         with tempfile.TemporaryDirectory() as temp_dir:
             aoi_filepath = os.path.join(temp_dir, secure_filename(aoi_file.filename))
             aoi_file.save(aoi_filepath)
-            gdf = gpd.read_file(aoi_filepath)
-            geojson_dict = gdf.__geo_interface__
-            aoi = ee.FeatureCollection(geojson_dict['features'])
+            try:
+                gdf = gpd.read_file(aoi_filepath)
+                geojson_dict = gdf.__geo_interface__
+                aoi = ee.FeatureCollection(geojson_dict['features'])
+            except Exception as e:
+                print(f"Error leyendo el archivo AOI: {e}")
+                return jsonify({"error": f"Error leyendo el archivo AOI: {e}"}), 400
 
-        # Definir las funciones de procesamiento
         def harmonizationRoy(oli):
             slopes = ee.Image.constant([0.9785, 0.9542, 0.9825, 1.0073, 1.0171, 0.9949])
             itcp = ee.Image.constant([-0.0095, -0.0016, -0.0022, -0.0021, -0.0030, 0.0029])
@@ -394,12 +406,10 @@ def vegetation_index_change_inspector():
                 .filterBounds(aoi) \
                 .filterDate(f'{year}-{startDay}', f'{year}-{endDay}')
             
-            # Harmonización de Landsat 8 y selección de bandas para Landsat 5 y 7
             srCollection = srCollection.map(lambda img: harmonizationRoy(img) if sensor == 'LC08' else img \
                                             .select(['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7']) \
                                             .resample('bicubic').set('system:time_start', img.get('system:time_start')))
             
-            # Convertir bandas a tipo Integer
             srCollection = srCollection.map(lambda img: img.toInt16())
             
             return srCollection
@@ -437,22 +447,17 @@ def vegetation_index_change_inspector():
 
             return image.addBands([ndvi, evi, savi, msi, ndmi, nbr])
 
-        # Definir el rango de fechas y días del año
         startDay, endDay = start_date[5:], end_date[5:]
         
-        # Obtener las colecciones de imágenes para los periodos de tiempo
         collection1 = getCombinedSRcollection(start_year, start_year, startDay, endDay, aoi)
         collection2 = getCombinedSRcollection(end_year, end_year, startDay, endDay, aoi)
 
-        # Validar si hay imágenes en las colecciones
-
-        # Calcular las imágenes medianas y añadir índices
         collection1_median = collection1.median().clip(aoi)
         collection2_median = collection2.median().clip(aoi)
         composite1 = add_indices(collection1_median)
         composite2 = add_indices(collection2_median)
         visualization_parameters={}
-        # Calcular la diferencia de índices
+        
         if band == "NDVI":
             delta_index = composite2.select('NDVI').subtract(composite1.select('NDVI')).rename('deltaNDVI')
             palette = ['red', 'white', 'green']
@@ -472,9 +477,9 @@ def vegetation_index_change_inspector():
             delta_index = composite2.select('NBR').subtract(composite1.select('NBR')).rename('deltaNBR')
             palette = ['red', 'white', 'green']
         else:
+            print('Tipo de índice desconocido')
             return jsonify({"error": "Tipo de índice desconocido"}), 400
 
-        # Calcular percentiles 2 y 98 para stretch
         percentiles = delta_index.reduceRegion(
             reducer=ee.Reducer.percentile([2, 98]),
             geometry=aoi.geometry(),
@@ -485,7 +490,6 @@ def vegetation_index_change_inspector():
         min_val = percentiles.get(f"{band_name}_p2")
         max_val = percentiles.get(f"{band_name}_p98")
         if min_val is None or max_val is None or min_val == max_val:
-            # fallback a min/max global si hay problema
             min_val = -0.25
             max_val = 0.25
 
@@ -495,44 +499,36 @@ def vegetation_index_change_inspector():
             'max': max_val
         }
 
-        # Obtener el mapa y las visualizaciones
         map_id = delta_index.getMapId(visualization_parameters)
         bounds=aoi.geometry().getInfo()
 
-        # Calcular min y max del delta_index dentro del AOI
         min_max_dict = delta_index.reduceRegion(
             reducer=ee.Reducer.minMax(),
             geometry=aoi.geometry(),
-            scale=30,  # Ajusta la escala según sea necesario
+            scale=30,
             maxPixels=1e9
         ).getInfo()
 
-        # Extraer min y max, manejar el caso donde no se encuentren
         min_val = min_max_dict.get('delta' + band + '_min')
         max_val = min_max_dict.get('delta' + band + '_max')
 
-        # --- DEBUG LOGGING ---
         print(f"Calculated min: {min_val}, max: {max_val}") 
-        # --- END DEBUG LOGGING ---
 
-        # Modificar la respuesta para incluir min y max
         output_data = [
             map_id['tile_fetcher'].url_format, 
             visualization_parameters, 
             'VICI_'+band+'_Result', 
             bounds,
-            min_val, # Añadir valor mínimo
-            max_val  # Añadir valor máximo
+            min_val, 
+            max_val
         ]
         
-        # --- DEBUG LOGGING ---
         print(f"Sending output data: {output_data}")
-        # --- END DEBUG LOGGING ---
 
         return jsonify({"success": True, "output": output_data}), 200
 
     except Exception as e:
-        print(str(e))
+        print(f"INTERNAL ERROR: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/get_image', methods=['POST'])

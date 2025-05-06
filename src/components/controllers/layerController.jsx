@@ -208,6 +208,60 @@ const indexPalettes = {
     ]
 };
 
+// Devuelve la interpretación según el índice y el valor
+function getInterpretationLabel(index, value) {
+    if (index === 'NDVI') {
+        if (value < 0.0) return <b>Agua, nieve o nubes (sin vegetación)</b>;
+        if (value < 0.2) return <b>Suelo desnudo o vegetación escasa</b>;
+        if (value < 0.4) return <b>Vegetación dispersa</b>;
+        if (value < 0.6) return <b>Vegetación moderada en buen estado</b>;
+        return <b>Bosques densos o vegetación muy saludable</b>;
+    }
+    if (index === 'EVI') {
+        if (value < 0.1) return <b>Muy poca vegetación o zonas áridas</b>;
+        if (value < 0.3) return <b>Vegetación baja</b>;
+        if (value < 0.5) return <b>Vegetación en desarrollo</b>;
+        if (value < 0.7) return <b>Alta actividad fotosintética</b>;
+        return <b>Vegetación muy densa y saludable</b>;
+    }
+    if (index === 'GNDVI') {
+        if (value < 0.1) return <b>Suelo desnudo o vegetación muy débil</b>;
+        if (value < 0.3) return <b>Bajo contenido de clorofila</b>;
+        if (value < 0.5) return <b>Buena clorofila</b>;
+        if (value < 0.7) return <b>Alta fotosíntesis</b>;
+        return <b>Vegetación muy saludable</b>;
+    }
+    if (index === 'NDMI') {
+        if (value < 0.0) return <b>Vegetación seca</b>;
+        if (value < 0.2) return <b>Baja humedad</b>;
+        if (value < 0.4) return <b>Humedad moderada</b>;
+        if (value < 0.6) return <b>Buen contenido hídrico</b>;
+        return <b>Vegetación muy húmeda</b>;
+    }
+    if (index === 'MSI') {
+        if (value < 0.4) return <b>Bien hidratada</b>;
+        if (value < 0.8) return <b>Hidratación adecuada</b>;
+        if (value < 1.2) return <b>Inicio de estrés hídrico</b>;
+        if (value < 1.6) return <b>Estrés moderado</b>;
+        return <b>Alto estrés hídrico</b>;
+    }
+    if (index === 'BI') {
+        if (value < 0.2) return <b>Superficie oscura</b>;
+        if (value < 0.4) return <b>Vegetación/suelo húmedo</b>;
+        if (value < 0.6) return <b>Mezcla vegetación/suelo</b>;
+        if (value < 0.8) return <b>Suelo árido o seco</b>;
+        return <b>Superficie muy brillante</b>;
+    }
+    if (index === 'SAVI') {
+        if (value < 0.1) return <b>Suelo desnudo</b>;
+        if (value < 0.3) return <b>Vegetación dispersa</b>;
+        if (value < 0.5) return <b>Cobertura media</b>;
+        if (value < 0.7) return <b>Buena cobertura</b>;
+        return <b>Vegetación muy densa</b>;
+    }
+    return '';
+}
+
 class LayerController extends React.Component {
     state = {
         open: false,
@@ -658,8 +712,8 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                         margin: '10px 0'
                     }}></div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
-                        <span>Suelo Desnudo</span>
-                        <span>Vegetación Sana</span>
+                        <span>{getInterpretationLabel('NDVI', minValue)}</span>
+                        <span>{getInterpretationLabel('NDVI', maxValue)}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
                         <span>Inicio: {localStorage.getItem('startDate') || 'N/A'}</span>
@@ -682,8 +736,8 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                         margin: '10px 0'
                     }}></div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
-                        <span>Suelo Desnudo</span>
-                        <span>Vegetación Sana</span>
+                        <span>{getInterpretationLabel('EVI', minValue)}</span>
+                        <span>{getInterpretationLabel('EVI', maxValue)}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
                         <span>Inicio: {localStorage.getItem('startDate') || 'N/A'}</span>
@@ -706,8 +760,8 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                         margin: '10px 0'
                     }}></div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
-                        <span>Suelo Desnudo</span>
-                        <span>Vegetación Sana</span>
+                        <span>{getInterpretationLabel('GNDVI', minValue)}</span>
+                        <span>{getInterpretationLabel('GNDVI', maxValue)}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
                         <span>Inicio: {localStorage.getItem('startDate') || 'N/A'}</span>
@@ -730,8 +784,8 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                         margin: '10px 0'
                     }}></div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
-                        <span>Menor Humedad</span>
-                        <span>Mayor Humedad</span>
+                        <span>{getInterpretationLabel('NDMI', minValue)}</span>
+                        <span>{getInterpretationLabel('NDMI', maxValue)}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
                         <span>Inicio: {localStorage.getItem('startDate') || 'N/A'}</span>
@@ -754,8 +808,8 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                         margin: '10px 0'
                     }}></div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
-                        <span>Humedad Alta</span>
-                        <span>Humedad Baja</span>
+                        <span>{getInterpretationLabel('MSI', minValue)}</span>
+                        <span>{getInterpretationLabel('MSI', maxValue)}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
                         <span>Inicio: {localStorage.getItem('startDate') || 'N/A'}</span>
@@ -778,8 +832,8 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                         margin: '10px 0'
                     }}></div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
-                        <span>Alto Brillo <span style={{fontWeight: 'normal'}}>(suelo desnudo)</span></span>
-                        <span>Bajo Brillo <span style={{fontWeight: 'normal'}}>(cobertura vegetal)</span></span>
+                        <span>{getInterpretationLabel('BI', minValue)}</span>
+                        <span>{getInterpretationLabel('BI', maxValue)}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
                         <span>Inicio: {localStorage.getItem('startDate') || 'N/A'}</span>
@@ -802,8 +856,8 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                         margin: '10px 0'
                     }}></div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
-                        <span>Suelo Desnudo</span>
-                        <span>Vegetación Sana</span>
+                        <span>{getInterpretationLabel('SAVI', minValue)}</span>
+                        <span>{getInterpretationLabel('SAVI', maxValue)}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
                         <span>Inicio: {localStorage.getItem('startDate') || 'N/A'}</span>

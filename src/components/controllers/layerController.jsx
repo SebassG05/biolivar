@@ -1024,7 +1024,7 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                                                             <Typography variant="subtitle2" style={{ fontWeight: 600, color: '#43a047', marginBottom: 4 }}>Histograma del índice</Typography>
                                                             <Bar
                                                                 data={{
-                                                                    labels: histData.labels, // Deja las etiquetas originales
+                                                                    labels: histData.labels,
                                                                     datasets: [{
                                                                         label: 'Frecuencia',
                                                                         data: histData.counts,
@@ -1039,8 +1039,8 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                                                                     plugins: { legend: { display: false } },
                                                                     scales: {
                                                                         x: {
-                                                                            title: { display: true, text: 'Valor del índice', color: '#43a047', font: { weight: 600 } },
-                                                                            ticks: { display: false, color: '#43a047' } // Oculta solo los valores del eje X
+                                                                            title: { display: false },
+                                                                            ticks: { display: false, color: '#43a047' }
                                                                         },
                                                                         y: {
                                                                             title: { display: true, text: 'Frecuencia', color: '#43a047', font: { weight: 600 } },
@@ -1049,6 +1049,9 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                                                                     }
                                                                 }}
                                                             />
+                                                            <Typography variant="subtitle2" style={{ fontWeight: 600, color: '#43a047', marginTop: 8, marginLeft: 25 }}>
+                                                                Valor del índice
+                                                            </Typography>
                                                             {/* Separador visual entre las dos gráficas */}
                                                             <div style={{ marginTop: 24 }} />
                                                             {/* Gráfica de línea NDVI temporal */}

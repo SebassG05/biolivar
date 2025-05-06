@@ -641,6 +641,9 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
             BI: 'Esta funcionalidad permite analizar el brillo general de la superficie usando el índice BI. Valores altos suelen indicar suelos desnudos o zonas urbanas, valores bajos vegetación densa o agua.',
             MSI: 'El MSI no tiene un rango fijo universal, pero sus valores suelen oscilar desde valores cercanos a 0 (poca tensión hídrica) hasta valores mayores de 2 o 3 (alto estrés)',
             SAVI: 'El rango de SAVI también va de -1 a +1, pero se usa principalmente en valores positivos.',
+            EVI: 'El EVI también mide la salud de la vegetación, pero mejora la sensibilidad en zonas de alta cobertura vegetal. Sus valores  normalmente se mueven entre -1 y 2. Un valor bajo, como 0.1 o 0.2, indica vegetación escasa o estresada, mientras que valores cercanos a 2 reflejan una vegetación muy activa y saludable.',
+            GNDVI: 'Este índice es similar al NDVI, pero en lugar de usar el rojo, utiliza la banda verde, lo que lo hace más sensible al contenido de clorofila. También varía entre -1 y +1. Valores bajos indican una vegetación débil o con poco contenido de clorofila, mientras que valores altos, por encima de 0.6, señalan plantas en buen estado y alto nivel de fotosíntesis. Es útil para detectar estrés antes de que se haga visible.',
+            NDMI:'El NDMI mide la humedad en la vegetación. Su rango también va de -1 a +1. Un valor bajo o negativo indica que la vegetación está seca o bajo estrés hídrico. Por el contrario, si el valor es alto, por ejemplo 0.5 o más, muestra que la vegetación contiene buena cantidad de agua y está en buen estado.'
         };
         // Paletas reales usadas en el backend para cada índice
         const indexLegends = {

@@ -35,7 +35,7 @@ const styles = {
         boxShadow: '-6px 6px 15px rgba(0, 0, 0, 0.15)',
     },
     header: {
-        backgroundColor: 'rgba(253,216,53,255)'
+        backgroundColor: 'rgb(102, 201, 107)' // Verde Material UI (green[600])
     },
     closeBtn: {
         position: 'absolute',
@@ -75,7 +75,8 @@ const styles = {
         position: 'absolute',
         bottom: '30px',
         left: '10px',
-        background: 'white',
+        background: 'rgba(67, 160, 71, 1)', // Igual que el header, verde Material UI
+        color: 'white',
         padding: '10px',
         fontFamily: 'Arial, sans-serif',
         fontSize: '12px',
@@ -679,14 +680,14 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
     };
 
     render() {
-        const visibleLayer = this.state.layers.find(layer => layer.visible);
-        const minValue = Number(visibleLayer && visibleLayer.min);
+        // Siempre obtener la primera capa visible en el orden actual
+        const visibleLayers = Array.isArray(this.state.layers) ? this.state.layers.filter(layer => layer.visible) : [];
+        const topVisibleLayer = visibleLayers.length > 0 ? visibleLayers[0] : null;
+        const minValue = Number(topVisibleLayer && topVisibleLayer.min);
         const minText = isNaN(minValue) ? '' : minValue.toFixed(2);
-        const maxValue = Number(visibleLayer && visibleLayer.max);
+        const maxValue = Number(topVisibleLayer && topVisibleLayer.max);
         const maxText = isNaN(maxValue) ? '' : maxValue.toFixed(2);
-
-        // Obtener el dataset del índice activo (simulación: deberías obtenerlo del backend o del estado real)
-        const dataset = (visibleLayer && visibleLayer.dataset) || [];
+        const dataset = (topVisibleLayer && topVisibleLayer.dataset) || [];
         const histData = getHistogramData(dataset, 20);
 
         // Explicaciones y leyendas para cada índice
@@ -950,7 +951,7 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                 </Slide>
 
                 {/* Show the legend panel only if open is true and there is a visible layer */}
-                {this.state.open && visibleLayer && (
+                {this.state.open && topVisibleLayer && (
                     <fieldset
                         style={{
                             position: 'fixed',

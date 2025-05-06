@@ -200,8 +200,8 @@ const indexPalettes = {
         '#f7e7c3', '#d9b77c', '#a2c8a3', '#51a4c5', '#0050ef', '#4b0082'
     ],
     BI: [
-        '#ffffff', '#e6e6e6', '#cccccc', '#b3b3b3', '#999999', '#808080', '#666666', '#4d4d4d', '#333333', '#1a1a1a', '#000000'
-    ],
+        '#000000', '#1a1a1a', '#333333', '#4d4d4d', '#666666', '#808080', '#999999', '#b3b3b3', '#cccccc', '#e6e6e6', '#ffffff'
+    ], // Invertido
     SAVI: [
         '#a50026', '#d73027', '#f46d43', '#fdae61', '#fee08b',
         '#ffffbf', '#d9ef8b', '#a6d96a', '#66bd63', '#1a9850', '#006837'
@@ -827,7 +827,7 @@ getLegendContent = (layer) => { // Changed parameter from layerId to layer
                     <div style={{
                         width: '100%',
                         height: 20,
-                        background: 'linear-gradient(to right, #ffffff, #e6e6e6, #cccccc, #b3b3b3, #999999, #808080, #666666, #4d4d4d, #333333, #1a1a1a, #000000)',
+                        background: 'linear-gradient(to right, #000000, #1a1a1a, #333333, #4d4d4d, #666666, #808080, #999999, #b3b3b3, #cccccc, #e6e6e6, #ffffff)',
                         borderRadius: 5,
                         margin: '10px 0'
                     }}></div>

@@ -36,10 +36,9 @@ class Canvas extends React.Component {
             tempId: null,
             styleCode: Object.values(mapStyles)[1].substring(16),
             accessGranted: false,
-            points: [
-                
-                ]
-
+            points: [],
+            userLayers: [],
+            userSources: []
         };
     }
 
@@ -160,6 +159,51 @@ class Canvas extends React.Component {
         });
     }
 
+    saveUserLayersAndSources = () => {
+        const map = this.state.map;
+        if (!map) return;
+        const layers = map.getStyle().layers || [];
+        const sources = map.getStyle().sources || {};
+        const baseSources = ['composite', 'mapbox'];
+        // Filtra todas las capas que no sean del mapa base ni background/water y tengan fuente válida
+        const userLayers = layers.filter(layer => {
+            return !baseSources.includes(layer.source) &&
+                !layer.id.startsWith('background') &&
+                !layer.id.startsWith('water') &&
+                layer.source && sources[layer.source];
+        }).map(layer => ({ ...layer }));
+        // Guarda solo fuentes válidas
+        const userSources = userLayers.map(layer => {
+            return {
+                id: layer.source,
+                source: JSON.parse(JSON.stringify(sources[layer.source]))
+            };
+        });
+        this.setState({ userLayers, userSources });
+    };
+
+    restoreUserLayersAndSources = () => {
+        const map = this.state.map;
+        if (!map) return;
+        // Añade fuentes primero
+        this.state.userSources.forEach(({ id, source }) => {
+            if (!map.getSource(id)) {
+                map.addSource(id, source);
+            }
+        });
+        // Añade capas después, siempre al final (encima de todo)
+        this.state.userLayers.forEach(layer => {
+            if (!map.getLayer(layer.id)) {
+                const { id, type, source, layout, paint, filter, minzoom, maxzoom, ...rest } = layer;
+                const layerDef = { id, type, source, layout, paint, filter, minzoom, maxzoom };
+                Object.keys(layerDef).forEach(key => {
+                    if (layerDef[key] === undefined) delete layerDef[key];
+                });
+                map.addLayer(layerDef);
+            }
+        });
+    };
+
     componentDidMount() {
         mapboxgl.accessToken = ACCESS_TOKEN;
 
@@ -273,8 +317,12 @@ class Canvas extends React.Component {
 
         this.setMapStyleListener = emitter.addListener('setMapStyle', key => {
             if (this.state.map) {
+                this.saveUserLayersAndSources();
                 this.state.map.setStyle(mapStyles[key]);
                 this.setState({ styleCode: key });
+                this.state.map.once('style.load', () => {
+                    this.restoreUserLayersAndSources();
+                });
             }
         });
 

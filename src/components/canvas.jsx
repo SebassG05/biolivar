@@ -271,65 +271,12 @@ class Canvas extends React.Component {
             })
         });
 
-	this.setMapStyleListener = emitter.addListener('setMapStyle', e => {
-	    if (this.state.popup.isOpen()) {
-		this.state.popup.remove();
-	    }
-
-	    // Guarda las fuentes y los layers visibles actuales
-	    const currentSources = { ...this.state.map.getStyle().sources };
-	    const currentLayers = [...this.state.map.getStyle().layers];
-	    console.log(currentSources);
-	    console.log(currentLayers);
-	    // Cambia el estilo del mapa
-	    this.state.map.setStyle(mapStyles[e]);
-
-	    // Espera a que el estilo del mapa se haya cargado antes de agregar las fuentes y layers antiguos
-	    this.state.map.on('style.load', () => {
-		// Agrega las fuentes guardadas, solo si no existen en el nuevo estilo
-		Object.keys(currentSources).forEach(sourceId => {
-		    if (!this.state.map.getSource(sourceId)) {
-		        try {
-		            this.state.map.addSource(sourceId, currentSources[sourceId]);
-		        } catch (error) {
-		            console.error(`Error adding source ${sourceId}:`, error);
-		        }
-		    } else {
-		        console.log(`Source with id "${sourceId}" already exists`);
-		    }
-		});
-
-		// Agrega los layers antiguos, solo si no existen en el nuevo estilo
-		currentLayers.forEach(layer => {
-		    if (!this.state.map.getLayer(layer.id)) {
-		        try {
-		            this.state.map.addLayer(layer);
-		        } catch (error) {
-		            console.error(`Error adding layer ${layer.id}:`, error);
-		        }
-		    } else {
-		        console.log(`Layer with id "${layer.id}" already exists`);
-		    }
-		});
-	    });
-
-	    // Actualiza el minimapa con el nuevo estilo
-	    const minimap = new Minimap({
-		center: this.state.map.getCenter(),
-		style: mapStyles[e]
-	    });
-
-	    this.state.map.removeControl(this.state.minimap);
-	    this.state.map.addControl(minimap, 'bottom-left');
-	    this.setState({
-		minimap: minimap,
-		styleCode: mapStyles[e].substring(16)
-	    });
-	});
-
-
-
-
+        this.setMapStyleListener = emitter.addListener('setMapStyle', key => {
+            if (this.state.map) {
+                this.state.map.setStyle(mapStyles[key]);
+                this.setState({ styleCode: key });
+            }
+        });
 
     // Escuchar el evento para cambiar la visibilidad de las capas
         this.toggleLayerVisibilityListener = emitter.addListener('toggleLayerVisibility', (layerId, visible) => {

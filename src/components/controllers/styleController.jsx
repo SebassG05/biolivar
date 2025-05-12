@@ -1,117 +1,105 @@
 /* Written by Ye Liu */
 
-import React from 'react';
-
-import Slide from '@material-ui/core/Slide';
+import React, { useState, useEffect } from 'react';
 import Card from '@material-ui/core/Card';
 import CardContent from '@material-ui/core/CardContent';
 import Typography from '@material-ui/core/Typography';
 import Grid from '@material-ui/core/Grid';
 import IconButton from '@material-ui/core/IconButton';
 import Icon from '@material-ui/core/Icon';
-
+import Slide from '@material-ui/core/Slide';
 import emitter from '@utils/events.utils';
 import { mapStyles } from '@utils/map.utils';
 import '@styles/styleController.style.css';
 
 const styles = {
-    root: {
-        position: 'fixed',
-        top: 74,
-        right: 10,
-        borderRadius: 9,
-        width: 320,
-        margin: 0,
-        zIndex: 900,
-	boxShadow: '-6px 6px 15px rgba(0, 0, 0, 0.15)'
-    },
-    content: {
-        paddingBottom: 16
-    },
-    header: {
-        backgroundColor: 'rgba(255,82,82,255)'
-    },
-    closeBtn: {
-        position: 'absolute',
-        top: 6,
-        right: 8,
-        fontSize: 22
-    },
-    stylePreview: {
-        width: 60,
-        height: 60,
-        borderRadius: 2,
-        cursor: 'pointer'
-    }
+  root: {
+    position: 'fixed',
+    top: 74,
+    right: 10,
+    borderRadius: 9,
+    width: 340,
+    margin: 0,
+    zIndex: 900,
+    boxShadow: '-6px 6px 15px rgba(0, 0, 0, 0.15)'
+  },
+  header: {
+    backgroundColor: 'rgba(255,82,82,255)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '16px 24px 8px 24px'
+  },
+  closeBtn: {
+    fontSize: 22
+  },
+  grid: {
+    padding: 16
+  },
+  stylePreview: {
+    width: 64,
+    height: 64,
+    borderRadius: 4,
+    cursor: 'pointer',
+    border: '2px solid transparent',
+    transition: 'border 0.2s'
+  },
+  selected: {
+    border: '2px solid #ff5252'
+  }
 };
 
-class StyleController extends React.Component {
-    state = {
-        open: false
-    }
+const StyleController = () => {
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState(null);
 
-    handleCloseClick = () => {
-        this.setState({
-            open: false
-        });
-    }
+  useEffect(() => {
+    const openListener = emitter.addListener('openStyleController', () => setOpen(true));
+    const closeListener = emitter.addListener('closeAllController', () => setOpen(false));
+    return () => {
+      emitter.removeListener(openListener);
+      emitter.removeListener(closeListener);
+    };
+  }, []);
 
-    handleStyleClick = (e) => {
-        emitter.emit('setMapStyle', e);
-        this.handleCloseClick();
-    }
+  const handleStyleClick = (key) => {
+    setSelected(key);
+    emitter.emit('setMapStyle', key);
+    setOpen(false);
+  };
 
-    componentDidMount() {
-        // Bind event listeners
-        this.openStyleControllerListener = emitter.addListener('openStyleController', () => {
-            this.setState({
-                open: true
-            });
-        });
-
-        this.closeAllControllerListener = emitter.addListener('closeAllController', () => {
-            this.setState({
-                open: false
-            });
-        });
-    }
-
-    componentWillUnmount() {
-        // Remove event listeners
-        emitter.removeListener(this.openStyleControllerListener);
-        emitter.removeListener(this.closeAllControllerListener);
-    }
-
-    render() {
-        return (
-            <Slide direction="left" in={this.state.open}>
-                <Card style={styles.root}>
-                    {/* Card header */}
-                    <CardContent style={styles.header}>
-                        <Typography gutterBottom variant="h5" component="h2" style={{ fontFamily: 'Lato, Arial, sans-serif', color:'white', fontWeight:'3' }}>Map Styles</Typography>
-                        <Typography variant="body2" color="textSecondary">Click to choose a map style</Typography>
-                        <IconButton style={styles.closeBtn} aria-label="Close" onClick={this.handleCloseClick}>
-                            <Icon fontSize="inherit">chevron_right</Icon>
-                        </IconButton>
-                    </CardContent>
-
-                    {/* Card content */}
-                    <CardContent style={styles.content}>
-                        <Grid container spacing={2}>
-                            {Object.keys(mapStyles).map((item, index) => {
-                                console.log(item)
-                                return (
-                                    <Grid item style={styles.styleCard} key={index} xs={3}>
-                                        <img src={`./static/assets/${item}.png`} alt="" className="hoverable" style={styles.stylePreview} onClick={this.handleStyleClick.bind(this, item)} />
-                                    </Grid>
-                                );
-                            })}
-                        </Grid>
-                    </CardContent>
-                </Card>
-            </Slide>
-        );
-    }
-}
+  return (
+    <Slide direction="left" in={open} mountOnEnter unmountOnExit>
+      <Card style={styles.root}>
+        <div style={styles.header}>
+          <div>
+            <Typography variant="h6" style={{ color: 'white', fontWeight: 600 }}>Map Styles</Typography>
+            <Typography variant="body2" style={{ color: 'white', opacity: 0.8 }}>Choose a map style</Typography>
+          </div>
+          <IconButton style={styles.closeBtn} aria-label="Close" onClick={() => setOpen(false)}>
+            <Icon fontSize="inherit">chevron_right</Icon>
+          </IconButton>
+        </div>
+        <CardContent style={{ paddingBottom: 16 }}>
+          <Grid container spacing={2} style={styles.grid}>
+            {Object.keys(mapStyles).map((key) => (
+              <Grid item xs={3} key={key} style={{ display: 'flex', justifyContent: 'center' }}>
+                <img
+                  src={`./static/assets/${key}.png`}
+                  alt={key}
+                  style={{
+                    ...styles.stylePreview,
+                    ...(selected === key ? styles.selected : {})
+                  }}
+                  onClick={() => handleStyleClick(key)}
+                />
+              </Grid>
+            ))}
+          </Grid>
+        </CardContent>
+      </Card>
+    </Slide>
+  );
+};
 
 export default StyleController;

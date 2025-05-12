@@ -461,12 +461,32 @@ class LayerController extends React.Component {
                 this.setState({ dates, temporalValues: values });
             }
         }
-        
-        if (this.state.showVegetationLegend && this.state.activeTool !== 'vegChange') {
-            this.setState({ showVegetationLegend: false });
+        // --- NUEVO: Si hay dos o más capas visibles, ambas funcionalidades activas ---
+        const visibleLayers = Array.isArray(this.state.layers) ? this.state.layers.filter(layer => layer.visible) : [];
+        if (visibleLayers.length > 1) {
+            if (this.state.activeTool !== 'both') {
+                this.setState({ activeTool: 'both' });
+            }
+        } else if (visibleLayers.length === 1) {
+            const id = visibleLayers[0].id.toUpperCase();
+            let newTool = null;
+            if (id.includes('EVI') || id.includes('MSI') || id.includes('BI') || id.includes('NDMI') || id.includes('SAVI')) {
+                newTool = 'surfaceAnalysis';
+            } else if (id.includes('NDVI') || id.includes('GNDVI')) {
+                newTool = 'vegChange';
+            }
+            if (newTool && this.state.activeTool !== newTool) {
+                this.setState({ activeTool: newTool });
+            }
         }
-        if (this.state.showSurfaceAnalysisLegend && this.state.activeTool !== 'surfaceAnalysis') {
-            this.setState({ showSurfaceAnalysisLegend: false });
+        // Cerrar paneles bloqueados automáticamente solo si no están ambas activas
+        if (this.state.activeTool !== 'both') {
+            if (this.state.showVegetationLegend && this.state.activeTool !== 'vegChange') {
+                this.setState({ showVegetationLegend: false });
+            }
+            if (this.state.showSurfaceAnalysisLegend && this.state.activeTool !== 'surfaceAnalysis') {
+                this.setState({ showSurfaceAnalysisLegend: false });
+            }
         }
     }
 
@@ -689,6 +709,65 @@ class LayerController extends React.Component {
         // Siempre obtener la primera capa visible en el orden actual
         const visibleLayers = Array.isArray(this.state.layers) ? this.state.layers.filter(layer => layer.visible) : [];
         const topVisibleLayer = visibleLayers.length > 0 ? visibleLayers[0] : null;
+        // Si no hay ninguna capa visible, forzar a cerrar los paneles y no mostrar leyenda
+        if (visibleLayers.length === 0) {
+            if (this.state.showVegetationLegend) this.setState({ showVegetationLegend: false });
+            if (this.state.showSurfaceAnalysisLegend) this.setState({ showSurfaceAnalysisLegend: false });
+            return (
+                <MuiThemeProvider theme={GlobalStyles}>
+                    <Slide direction="left" in={this.state.open}>
+                        <Card style={styles.root}>
+                            <CardContent style={styles.header}>
+                                <Typography gutterBottom style={{ fontFamily: 'Lato, Arial, sans-serif', color: 'white', fontWeight: '3' }} variant="h5" component="h2">Capas</Typography>
+                                <Typography variant="body2" color="textSecondary">Gestiona y controla las capas</Typography>
+                                <IconButton style={styles.closeBtn} aria-label="Close" onClick={() => this.setState({ open: false })}>
+                                    <Icon fontSize="inherit">chevron_right</Icon>
+                                </IconButton>
+                            </CardContent>
+                            <CardContent style={styles.content}>
+                                <List id="layers" style={styles.layerList}>
+                                    {this.state.layers.map(layer => {
+                                        const indice = ['NDVI','EVI','GNDVI','NDMI','MSI','BI','SAVI'].find(idx => layer.id.toUpperCase().includes(idx));
+                                        return (
+                                            <React.Fragment key={layer.id}>
+                                                <ListItem style={styles.layerItem}>
+                                                    <ListItemText
+                                                        primary={
+                                                            <span style={{...styles.layerText, width: '100%', display: 'block', textAlign: 'center'}}>
+                                                                <span style={{fontWeight: 'bold'}}>Índice: </span>
+                                                                <span>{indice || this.splitAssetName(layer.id)}</span>
+                                                            </span>
+                                                        }
+                                                    />
+                                                    <Checkbox
+                                                        checked={layer.visible}
+                                                        onChange={() => this.handleLayerVisibilityChange(layer.id)}
+                                                        color="primary"
+                                                    />
+                                                    <Slider
+                                                        value={layer.transparency}
+                                                        onChange={(e, value) => this.handleTransparencyChange(layer.id, value)}
+                                                        min={0}
+                                                        max={100}
+                                                        style={styles.slider}
+                                                    />
+                                                    <Tooltip title="Download this layer" aria-label="Download this layer" enterDelay={200}>
+                                                        <IconButton className="icon-container modal-trigger" aria-label="Download this layer" color="inherit">
+                                                            <Icon style={styles.fontIcon}>download_icon</Icon>
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                </ListItem>
+                                            </React.Fragment>
+                                        );
+                                    })}
+                                </List>
+                            </CardContent>
+                        </Card>
+                    </Slide>
+                </MuiThemeProvider>
+            );
+        }
+
         const minValue = Number(topVisibleLayer && topVisibleLayer.min);
         const minText = isNaN(minValue) ? '' : minValue.toFixed(2);
         const maxValue = Number(topVisibleLayer && topVisibleLayer.max);
@@ -1029,19 +1108,19 @@ class LayerController extends React.Component {
                                             display: 'flex',
                                             justifyContent: 'space-between',
                                             alignItems: 'center',
-                                            cursor: activeTool === 'vegChange' ? 'pointer' : 'not-allowed',
+                                            cursor: (activeTool === 'vegChange' || activeTool === 'both') ? 'pointer' : 'not-allowed',
                                             padding: '10px 0',
                                             borderBottom: '1px solid #eee',
-                                            opacity: activeTool === 'surfaceAnalysis' ? 0.4 : 1
+                                            opacity: activeTool === 'surfaceAnalysis' && activeTool !== 'both' ? 0.4 : 1
                                         }}
                                     >
                                         <div style={{ display: 'flex', alignItems: 'center' }}>
                                             <Typography variant="body2"><strong><b>Cambios en la vegetación</b></strong></Typography>
-                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.setState({ infoOpen: !this.state.infoOpen }); }} style={{ marginLeft: 6 }} disabled={activeTool === 'surfaceAnalysis'}>
+                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.setState({ infoOpen: !this.state.infoOpen }); }} style={{ marginLeft: 6 }} disabled={activeTool === 'surfaceAnalysis' && activeTool !== 'both'}>
                                                 <Icon style={{ fontSize: 18, color: '#1976d2' }}>info</Icon>
                                             </IconButton>
                                         </div>
-                                        <Icon onClick={e => { if (activeTool === 'vegChange') { e.stopPropagation(); this.toggleVegetationLegend(); } }}>{this.state.showVegetationLegend ? 'expand_less' : 'expand_more'}</Icon>
+                                        <Icon onClick={e => { if (activeTool === 'vegChange' || activeTool === 'both') { e.stopPropagation(); this.toggleVegetationLegend(); } }}>{this.state.showVegetationLegend ? 'expand_less' : 'expand_more'}</Icon>
                                     </div>
                                     {/* Info collapsible */}
                                     <Collapse in={this.state.infoOpen} timeout="auto" unmountOnExit>
@@ -1089,19 +1168,19 @@ class LayerController extends React.Component {
                                             display: 'flex',
                                             justifyContent: 'space-between',
                                             alignItems: 'center',
-                                            cursor: activeTool === 'surfaceAnalysis' ? 'pointer' : 'not-allowed',
+                                            cursor: (activeTool === 'surfaceAnalysis' || activeTool === 'both') ? 'pointer' : 'not-allowed',
                                             padding: '10px 0',
                                             borderBottom: '1px solid #eee',
-                                            opacity: activeTool === 'vegChange' ? 0.4 : 1
+                                            opacity: activeTool === 'vegChange' && activeTool !== 'both' ? 0.4 : 1
                                         }}
                                     >
                                         <div style={{ display: 'flex', alignItems: 'center' }}>
                                             <Typography variant="body2"><strong><b>Análisis de la superficie</b></strong></Typography>
-                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.handleSurfaceInfoClick(); }} style={{ marginLeft: 6 }} disabled={activeTool === 'vegChange'}>
+                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.handleSurfaceInfoClick(); }} style={{ marginLeft: 6 }} disabled={activeTool === 'vegChange' && activeTool !== 'both'}>
                                                 <Icon style={{ fontSize: 18, color: '#1976d2' }}>info</Icon>
                                             </IconButton>
                                         </div>
-                                        <Icon onClick={e => { if (activeTool === 'surfaceAnalysis') { e.stopPropagation(); this.toggleSurfaceAnalysisLegend(); } }}>{this.state.showSurfaceAnalysisLegend ? 'expand_less' : 'expand_more'}</Icon>
+                                        <Icon onClick={e => { if (activeTool === 'surfaceAnalysis' || activeTool === 'both') { e.stopPropagation(); this.toggleSurfaceAnalysisLegend(); } }}>{this.state.showSurfaceAnalysisLegend ? 'expand_less' : 'expand_more'}</Icon>
                                     </div>
                                     <Collapse in={this.state.showSurfaceInfo} timeout="auto" unmountOnExit>
                                         <div style={{ padding: '12px 16px', background: '#f9f9f9', borderRadius: 8, margin: '8px 0' }}>

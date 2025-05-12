@@ -470,10 +470,12 @@ class LayerController extends React.Component {
         } else if (visibleLayers.length === 1) {
             const id = visibleLayers[0].id.toUpperCase();
             let newTool = null;
-            if (id.includes('EVI') || id.includes('MSI') || id.includes('BI') || id.includes('NDMI') || id.includes('SAVI')) {
-                newTool = 'surfaceAnalysis';
-            } else if (id.includes('NDVI') || id.includes('GNDVI')) {
+            // Si la capa es resultado de Vegetation Changes (id contiene 'VICI'), mostrar leyenda de cambios de vegetación
+            if (id.includes('VICI')) {
                 newTool = 'vegChange';
+            } else {
+                // Para cualquier otro caso (cálculo de variables), mostrar leyenda de análisis de la superficie
+                newTool = 'surfaceAnalysis';
             }
             if (newTool && this.state.activeTool !== newTool) {
                 this.setState({ activeTool: newTool });
@@ -1111,7 +1113,7 @@ class LayerController extends React.Component {
                                             cursor: (activeTool === 'vegChange' || activeTool === 'both') ? 'pointer' : 'not-allowed',
                                             padding: '10px 0',
                                             borderBottom: '1px solid #eee',
-                                            opacity: activeTool === 'surfaceAnalysis' && activeTool !== 'both' ? 0.4 : 1
+                                            opacity: (activeTool === 'surfaceAnalysis' && activeTool !== 'both') ? 0.4 : 1
                                         }}
                                     >
                                         <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -1171,7 +1173,7 @@ class LayerController extends React.Component {
                                             cursor: (activeTool === 'surfaceAnalysis' || activeTool === 'both') ? 'pointer' : 'not-allowed',
                                             padding: '10px 0',
                                             borderBottom: '1px solid #eee',
-                                            opacity: activeTool === 'vegChange' && activeTool !== 'both' ? 0.4 : 1
+                                            opacity: (activeTool === 'vegChange' && activeTool !== 'both') ? 0.4 : 1
                                         }}
                                     >
                                         <div style={{ display: 'flex', alignItems: 'center' }}>

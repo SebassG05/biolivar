@@ -317,6 +317,8 @@ class BandController extends React.Component {
 
     handleDataSubmit = (data) => {
         this.setState({ loading: true });
+        // Notificar a LayerController que la herramienta activa es 'surfaceAnalysis'
+        emitter.emit('setActiveTool', 'surfaceAnalysis');
         // Mostrar log para depuración
         console.log('Datos enviados al backend:', data);
         if (data[0].aoiDataFiles && data[0].aoiDataFiles.length > 0) {

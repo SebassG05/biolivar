@@ -9,6 +9,9 @@ import InfoOutlined from '@material-ui/icons/InfoOutlined';
 import Collapse from '@material-ui/core/Collapse';
 import Paper from '@material-ui/core/Paper';
 import CloseIcon from '@material-ui/icons/Close';
+import Fade from '@material-ui/core/Fade';
+import Lottie from 'lottie-react';
+import treeGrow from '@/assets/tree-grow.json';
 
 import { ThemeProvider, createTheme } from '@material-ui/core/styles';
 import indigo from '@material-ui/core/colors/indigo';
@@ -200,6 +203,11 @@ class VegInspectorController extends React.Component {
         open: false,
         showInfo: false,
         currentIndexType: 'NDVI',
+        loading: false,
+    }
+
+    setLoading = (loading) => {
+        this.setState({ loading });
     }
 
     handleCloseClick = () => {
@@ -419,6 +427,61 @@ class VegInspectorController extends React.Component {
         };
         return (
             <ThemeProvider theme={theme}>
+                <Fade in={this.state.loading} timeout={500}>
+                    <div style={{
+                        position: 'fixed',
+                        inset: 0,
+                        width: '100vw',
+                        height: '100vh',
+                        zIndex: 9999,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'transparent',
+                        margin: 0,
+                        padding: 0
+                    }}>
+                        <div style={{
+                            width: 350,
+                            height: 350,
+                            background: 'rgba(138,213,137,0.85)',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexDirection: 'column',
+                            boxShadow: '0 0 40px 10px rgba(138,213,137,0.25)',
+                        }}>
+                            <div style={{
+                                width: 220,
+                                height: 220,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                margin: 0,
+                                padding: 0,
+                                flexDirection: 'column',
+                                marginBottom: 30
+                            }}>
+                                <Lottie animationData={treeGrow} loop={true} />
+                            </div>
+                            <div style={{
+                                marginTop: 3,
+                                fontSize: 22,
+                                color: '#ffffff',
+                                fontWeight: 600,
+                                letterSpacing: 1,
+                                fontFamily: 'Lato, Arial, sans-serif',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                minHeight: 32
+                            }}>
+                                <span className="loading-dots">Cargando capa<span className="dot">.</span><span className="dot">.</span><span className="dot">.</span></span>
+                            </div>
+                        </div>
+                    </div>
+                </Fade>
                 <Slide direction="left" in={this.state.open}>
                     <Card style={styles.root}>
                         {/* Card header */}
@@ -453,6 +516,7 @@ class VegInspectorController extends React.Component {
                                 ref={this.controlledAccordionsRef}
                                 onSubmit={this.handleDataSubmit}
                                 onIndexTypeChange={this.handleIndexTypeChange}
+                                setLoading={this.setLoading}
                             />
                             {/* Contenedor para info y submit alineados */}
                             <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 }}>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { makeStyles } from '@material-ui/core/styles';
-import { Backdrop, CircularProgress, InputLabel, Select, TextField, FormControl, MenuItem, Grid } from '@material-ui/core';
+import { InputLabel, Select, TextField, FormControl, MenuItem, Grid } from '@material-ui/core';
 import Accordion from '@material-ui/core/Accordion';
 import { DropzoneArea } from 'material-ui-dropzone';
 import { AttachFile, Description, PictureAsPdf, Theaters } from '@material-ui/icons';
@@ -24,13 +24,6 @@ const useStyles = makeStyles((theme) => ({
   dateInput: {
     width: '100%',
   },
-  backdrop: {
-    zIndex: theme.zIndex.drawer + 1,
-    color: '#fff',
-  },
-  progressText: {
-    marginLeft: theme.spacing(2),
-  },
 }));
 
 const getToday = () => {
@@ -38,7 +31,7 @@ const getToday = () => {
   return today.toISOString().split('T')[0];
 };
 
-const ControlledAccordions = forwardRef(function ControlledAccordions({ onSubmit, onIndexTypeChange }, ref) {
+const ControlledAccordions = forwardRef(function ControlledAccordions({ onSubmit, onIndexTypeChange, setLoading }, ref) {
   const classes = useStyles();
   const [expanded, setExpanded] = useState(false);
   const [formData, setFormData] = useState({
@@ -47,21 +40,7 @@ const ControlledAccordions = forwardRef(function ControlledAccordions({ onSubmit
     indexType: 'NDVI',
     aoiDataFiles: []
   });
-  const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(0);
-
-  useEffect(() => {
-    let timerInterval;
-    if (loading) {
-      timerInterval = setInterval(() => {
-        setTimer((prevTimer) => prevTimer + 1);
-      }, 1000);
-    } else {
-      clearInterval(timerInterval);
-    }
-
-    return () => clearInterval(timerInterval);
-  }, [loading]);
 
   useEffect(() => {
     // Cargar fechas guardadas en localStorage al iniciar
@@ -152,7 +131,7 @@ const ControlledAccordions = forwardRef(function ControlledAccordions({ onSubmit
       return;
     }
     try {
-      setLoading(true);
+      if (typeof setLoading === 'function') setLoading(true);
       setTimer(0);
       const data = new FormData();
 
@@ -179,22 +158,22 @@ const ControlledAccordions = forwardRef(function ControlledAccordions({ onSubmit
       if (result && result.success && Array.isArray(result.output)) {
         console.log('Data sent successfully', result.output);
         onSubmit(result.output);
-        setLoading(false);
+        if (typeof setLoading === 'function') setLoading(false);
         emitter.emit('closeAllController');
         emitter.emit('openLayerController');
         return true;
       } else if (result && result.error) {
-        setLoading(false);
+        if (typeof setLoading === 'function') setLoading(false);
         emitter.emit('showSnackbar', 'error', `Error: '${result.error}'`);
         return false;
       } else {
-        setLoading(false);
+        if (typeof setLoading === 'function') setLoading(false);
         emitter.emit('showSnackbar', 'error', 'Unexpected response from server.');
         return false;
       }
 
     } catch (error) {
-      setLoading(false);
+      if (typeof setLoading === 'function') setLoading(false);
       emitter.emit('showSnackbar', 'error', `Error: '${error}'`);
       console.error('Failed to send data', error);
     }
@@ -273,12 +252,6 @@ const ControlledAccordions = forwardRef(function ControlledAccordions({ onSubmit
           </Grid>
         </AccordionDetails>
       </Accordion>
-      <Backdrop className={classes.backdrop} open={loading}>
-        <CircularProgress color="inherit" />
-        <Typography variant="h6" className={classes.progressText}>
-          Loading... {timer}s
-        </Typography>
-      </Backdrop>
     </div>
   );
 });

@@ -461,155 +461,161 @@ class LayerController extends React.Component {
                 this.setState({ dates, temporalValues: values });
             }
         }
+        
+        if (this.state.showVegetationLegend && this.state.activeTool !== 'vegChange') {
+            this.setState({ showVegetationLegend: false });
+        }
+        if (this.state.showSurfaceAnalysisLegend && this.state.activeTool !== 'surfaceAnalysis') {
+            this.setState({ showSurfaceAnalysisLegend: false });
+        }
     }
 
-    
-getLegendContent = (layer) => { // Changed parameter from layerId to layer
-    if (!layer) return null; // Return null if no layer object is provided
-    const layerId = layer.id; // Get id from the layer object
+    getLegendContent = (layer) => { 
+        if (!layer) return null; 
+        const layerId = layer.id; 
 
-    if (layerId.includes('VICI')) {
-        // Use layer.min and layer.max if available, otherwise default or show placeholder
-        const minValue = Number(layer.min);
-        const minText = isNaN(minValue) ? '' : minValue.toFixed(2);
-        const maxValue = Number(layer.max);
-        const maxText = isNaN(maxValue) ? '' : maxValue.toFixed(2);
-        return (
-            <div style={{ padding: '10px', textAlign: 'center' }}>
-                <Typography><strong>Vegetation Change</strong> %/year</Typography>
-                <div style={{ 
-                    width: '100%', 
-                    height: '20px', 
-                    background: 'linear-gradient(to right, red, white, green)', 
-                    margin: '10px 0', 
-                    borderRadius: '5px' 
-                }}>
+        if (layerId.includes('VICI')) {
+            
+            const minValue = Number(layer.min);
+            const minText = isNaN(minValue) ? '' : minValue.toFixed(2);
+            const maxValue = Number(layer.max);
+            const maxText = isNaN(maxValue) ? '' : maxValue.toFixed(2);
+            return (
+                <div style={{ padding: '10px', textAlign: 'center' }}>
+                    <Typography><strong>Vegetation Change</strong> %/year</Typography>
+                    <div style={{ 
+                        width: '100%', 
+                        height: '20px', 
+                        background: 'linear-gradient(to right, red, white, green)', 
+                        margin: '10px 0', 
+                        borderRadius: '5px' 
+                    }}>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        {/* Display dynamic min value */}
+                        <Typography variant="body2">{minText}</Typography>
+                        {/* Display dynamic max value */}
+                        <Typography variant="body2">{maxText}</Typography>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2">Decline</Typography>
+                        <Typography variant="body2">Increase</Typography>
+                    </div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    {/* Display dynamic min value */}
-                    <Typography variant="body2">{minText}</Typography>
-                    {/* Display dynamic max value */}
-                    <Typography variant="body2">{maxText}</Typography>
+            );
+        } else if (layerId.includes('Erosion')) {
+            return (
+                <div>
+                    <Typography><strong>Soil Loss</strong> (t/hac/year)</Typography>
+                                    {['#490EFF', '#12F4FF', '#12FF50', '#E5FF12', '#FF4812'].map((color, index) => {
+                        const labels = [
+                            'Slight (<10)',
+                            'Moderate (10-20)',
+                            'High (20-30)',
+                            'Very high (30-40)',
+                            'Severe (>40)'
+                        ];
+                        return (
+                            <div key={index} style={{ display: 'flex', alignItems: 'center' }}>
+                                <span style={{ width: '20px', height: '20px', backgroundColor: color, marginRight: '10px' }}></span>
+                                <Typography>{labels[index]}</Typography>
+                            </div>
+                        );
+                    })}
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="body2">Decline</Typography>
-                    <Typography variant="body2">Increase</Typography>
+            );
+        } else if (layerId.includes('DSM')) {
+            return (
+                <div>
+                    <Typography><strong>DSM</strong> (t/ha)</Typography>
+                    {['#ffffe5', '#fee391', '#fec44f', '#ec7014', '#8c2d04'].map((color, index) => {
+                        const labels = [
+                            '0 - 1.2',
+                            '1.2 - 2.4',
+                            '2.4 - 3.6',
+                            '3.6 - 4.8',
+                            '4.8 - 6'
+                        ];
+                        return (
+                            <div key={index} style={{ display: 'flex', alignItems: 'center' }}>
+                                <span style={{ width: '20px', height: '20px', backgroundColor: color, marginRight: '10px' }}></span>
+                                <Typography>{labels[index]}</Typography>
+                            </div>
+                        );
+                    })}
                 </div>
-            </div>
-        );
-    } else if (layerId.includes('Erosion')) {
-        return (
-            <div>
-                <Typography><strong>Soil Loss</strong> (t/hac/year)</Typography>
-                                {['#490EFF', '#12F4FF', '#12FF50', '#E5FF12', '#FF4812'].map((color, index) => {
-                    const labels = [
-                        'Slight (<10)',
-                        'Moderate (10-20)',
-                        'High (20-30)',
-                        'Very high (30-40)',
-                        'Severe (>40)'
-                    ];
-                    return (
-                        <div key={index} style={{ display: 'flex', alignItems: 'center' }}>
-                            <span style={{ width: '20px', height: '20px', backgroundColor: color, marginRight: '10px' }}></span>
-                            <Typography>{labels[index]}</Typography>
-                        </div>
-                    );
-                })}
-            </div>
-        );
-    } else if (layerId.includes('DSM')) {
-        return (
-            <div>
-                <Typography><strong>DSM</strong> (t/ha)</Typography>
-                {['#ffffe5', '#fee391', '#fec44f', '#ec7014', '#8c2d04'].map((color, index) => {
-                    const labels = [
-                        '0 - 1.2',
-                        '1.2 - 2.4',
-                        '2.4 - 3.6',
-                        '3.6 - 4.8',
-                        '4.8 - 6'
-                    ];
-                    return (
-                        <div key={index} style={{ display: 'flex', alignItems: 'center' }}>
-                            <span style={{ width: '20px', height: '20px', backgroundColor: color, marginRight: '10px' }}></span>
-                            <Typography>{labels[index]}</Typography>
-                        </div>
-                    );
-                })}
-            </div>
-        );
-    } else if (layerId.includes('avg')) {
-        return (
-            <div>
-                <Typography><strong>Habitat Suitability</strong></Typography>
-                {['#ffffff', '#cceacc', '#66bf66', '#006600'].map((color, index) => {
-                    const labels = [
-                        'Unsuitable',
-                        'Low suitability',
-                        'Moderate suitability',
-                        'High suitability'
-                    ];
-                    return (
-                        <div key={index} style={{ display: 'flex', alignItems: 'center' }}>
-                            <span style={{ width: '20px', height: '20px', backgroundColor: color, marginRight: '10px' }}></span>
-                            <Typography>{labels[index]}</Typography>
-                        </div>
-                    );
-                })}
-            </div>
-        );
-    } else if (layerId.includes('Suelo')) {
-        const usoSueloValues = [ 
-            'Tejido urbano continuo', 'Tejido urbano discontinuo', 'Zonas industriales o comerciales',
-            'Redes viarias, ferroviarias y terrenos asociados', 'Zonas portuarias', 'Aeropuertos',
-            'Zonas de extracción minera', 'Escombreras y vertederos', 'Zonas en construcción',
-            'Zonas verdes urbanas', 'Instalaciones deportivas y recreativas', 'Tierras de labor en secano',
-            'Terrenos regados permanentemente', 'Arrozales', 'Viñedo', 'Frutales', 'Olivares',
-            'Prados y Praderas', 'Cultivos anuales asociados con cultivos permanentes', 'Mosaico de cultivos',
-            'Terrenos principalmente agrícolas, pero con importantes espacios de vegetación natural',
-            'Sistemas agroforestales', 'Bosques de frondosas', 'Bosques de coníferas', 'Bosque mixto',
-            'Pastizales naturales', 'Landas y matorrales', 'Matorrales esclerófilos',
-            'Matorral boscoso de transición', 'Playas, dunas y arenales', 'Roquedo',
-            'Espacios con vegetación escasa', 'Zonas quemadas', 'Humedales y zonas pantanosas', 'Marismas',
-            'Salinas', 'Zonas llanas intermareales', 'Cursos de agua'
-        ];
+            );
+        } else if (layerId.includes('avg')) {
+            return (
+                <div>
+                    <Typography><strong>Habitat Suitability</strong></Typography>
+                    {['#ffffff', '#cceacc', '#66bf66', '#006600'].map((color, index) => {
+                        const labels = [
+                            'Unsuitable',
+                            'Low suitability',
+                            'Moderate suitability',
+                            'High suitability'
+                        ];
+                        return (
+                            <div key={index} style={{ display: 'flex', alignItems: 'center' }}>
+                                <span style={{ width: '20px', height: '20px', backgroundColor: color, marginRight: '10px' }}></span>
+                                <Typography>{labels[index]}</Typography>
+                            </div>
+                        );
+                    })}
+                </div>
+            );
+        } else if (layerId.includes('Suelo')) {
+            const usoSueloValues = [ 
+                'Tejido urbano continuo', 'Tejido urbano discontinuo', 'Zonas industriales o comerciales',
+                'Redes viarias, ferroviarias y terrenos asociados', 'Zonas portuarias', 'Aeropuertos',
+                'Zonas de extracción minera', 'Escombreras y vertederos', 'Zonas en construcción',
+                'Zonas verdes urbanas', 'Instalaciones deportivas y recreativas', 'Tierras de labor en secano',
+                'Terrenos regados permanentemente', 'Arrozales', 'Viñedo', 'Frutales', 'Olivares',
+                'Prados y Praderas', 'Cultivos anuales asociados con cultivos permanentes', 'Mosaico de cultivos',
+                'Terrenos principalmente agrícolas, pero con importantes espacios de vegetación natural',
+                'Sistemas agroforestales', 'Bosques de frondosas', 'Bosques de coníferas', 'Bosque mixto',
+                'Pastizales naturales', 'Landas y matorrales', 'Matorrales esclerófilos',
+                'Matorral boscoso de transición', 'Playas, dunas y arenales', 'Roquedo',
+                'Espacios con vegetación escasa', 'Zonas quemadas', 'Humedales y zonas pantanosas', 'Marismas',
+                'Salinas', 'Zonas llanas intermareales', 'Cursos de agua'
+            ];
 
-        const colores = [
-            '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFA500', '#800080',
-            '#8B0000', '#A52A2A', '#5F9EA0', '#7FFF00', '#D2691E', '#6495ED', '#DC143C', '#00FA9A',
-            '#FFD700', '#ADFF2F', '#4B0082', '#20B2AA', '#9370DB', '#3CB371', '#7B68EE', '#48D1CC',
-            '#C71585', '#191970', '#FF4500', '#DA70D6', '#32CD32', '#4682B4', '#FA8072', '#778899',
-            '#8A2BE2', '#00CED1', '#FF1493', '#2E8B57', '#7CFC00', '#B8860B'
-        ];
+            const colores = [
+                '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFA500', '#800080',
+                '#8B0000', '#A52A2A', '#5F9EA0', '#7FFF00', '#D2691E', '#6495ED', '#DC143C', '#00FA9A',
+                '#FFD700', '#ADFF2F', '#4B0082', '#20B2AA', '#9370DB', '#3CB371', '#7B68EE', '#48D1CC',
+                '#C71585', '#191970', '#FF4500', '#DA70D6', '#32CD32', '#4682B4', '#FA8072', '#778899',
+                '#8A2BE2', '#00CED1', '#FF1493', '#2E8B57', '#7CFC00', '#B8860B'
+            ];
 
-        return (
-            <div>
-                <Typography><strong>Uso del Suelo</strong></Typography>
-                <div style={{
-                    maxHeight: '200px',
-                    overflowY: 'auto',
-                    border: '1px solid #ccc',
-                    borderRadius: '5px',
-                    padding: '10px',
-                    marginTop: '10px'
-                }}>
-                    {usoSueloValues.map((value, index) => (
-                        <div key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
-                            <span style={{ 
-                                width: '20px', 
-                                height: '20px', 
-                                backgroundColor: colores[index], 
-                                marginRight: '10px' 
-                            }}></span>
-                            <Typography>{value}</Typography>
-                        </div>
-                    ))}
+            return (
+                <div>
+                    <Typography><strong>Uso del Suelo</strong></Typography>
+                    <div style={{
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                        border: '1px solid #ccc',
+                        borderRadius: '5px',
+                        padding: '10px',
+                        marginTop: '10px'
+                    }}>
+                        {usoSueloValues.map((value, index) => (
+                            <div key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+                                <span style={{ 
+                                    width: '20px', 
+                                    height: '20px', 
+                                    backgroundColor: colores[index], 
+                                    marginRight: '10px' 
+                                }}></span>
+                                <Typography>{value}</Typography>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-            </div>
-        );
+            );
+        }
     }
-};
 
 
     handleAssetChange = (event) => {

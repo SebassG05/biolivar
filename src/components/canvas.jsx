@@ -318,10 +318,13 @@ class Canvas extends React.Component {
         this.setMapStyleListener = emitter.addListener('setMapStyle', key => {
             if (this.state.map) {
                 this.saveUserLayersAndSources();
-                this.state.map.setStyle(mapStyles[key]);
-                this.setState({ styleCode: key });
-                this.state.map.once('style.load', () => {
-                    this.restoreUserLayersAndSources();
+                // Actualiza el estado styleCode y localStorage ANTES de cambiar el style
+                localStorage.setItem('selectedMapStyle', key);
+                this.setState({ styleCode: key }, () => {
+                    this.state.map.setStyle(mapStyles[key]);
+                    this.state.map.once('style.load', () => {
+                        this.restoreUserLayersAndSources();
+                    });
                 });
             }
         });

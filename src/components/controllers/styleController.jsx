@@ -73,8 +73,8 @@ const StyleController = () => {
       <Card style={styles.root}>
         <div style={styles.header}>
           <div>
-            <Typography variant="h6" style={{ color: 'white', fontWeight: 600 }}>Map Styles</Typography>
-            <Typography variant="body2" style={{ color: 'white', opacity: 0.8 }}>Choose a map style</Typography>
+            <Typography variant="h6" style={{ color: 'white', fontWeight: 600 }}>Estilo de Mapas</Typography>
+            <Typography variant="body2" style={{ color: 'white', opacity: 0.8 }}>Elige el estilo de mapas</Typography>
           </div>
           <IconButton style={styles.closeBtn} aria-label="Close" onClick={() => setOpen(false)}>
             <Icon fontSize="inherit">chevron_right</Icon>

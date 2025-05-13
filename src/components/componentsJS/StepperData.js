@@ -1,282 +1,228 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import TextField from '@mui/material/TextField';
 import Stepper from '@mui/material/Stepper';
 import Step from '@mui/material/Step';
 import StepLabel from '@mui/material/StepLabel';
 import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
-import TextField from '@mui/material/TextField';
-import InputLabel from '@mui/material/InputLabel';
-import Select from '@mui/material/Select';
-import MenuItem from '@mui/material/MenuItem';
-import Plot from 'react-plotly.js';
 import Checkbox from '@mui/material/Checkbox';
-import ListItemText from '@mui/material/ListItemText';
-import OutlinedInput from '@mui/material/OutlinedInput';
-import { saveAs } from 'file-saver';
+import FormGroup from '@mui/material/FormGroup';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
+import emitter from '@utils/events.utils';
 
-const steps = ['Date Selection', 'Choose Equipment Type', 'Select Data Types'];
+const steps = [
+  'Date Selection',
+  'Choose Index Type',
+  'Upload Data',
+];
+
+const indexOptions = [
+  { label: 'EVI (Enhanced Vegetation Index)', value: 'EVI' },
+  { label: 'Precipitation (CHIRPS)', value: 'Precipitation' },
+  { label: 'Land Surface Temperature (LST)', value: 'LST' },
+  { label: 'Percent Tree Cover (MODIS)', value: 'Percent_Tree_Cover' },
+];
+
+const getToday = () => {
+  const today = new Date();
+  return today.toISOString().split('T')[0];
+};
 
 export default function HorizontalLinearStepperData({ onSubmit }) {
   const [activeStep, setActiveStep] = useState(0);
-  const [plotData, setPlotData] = useState([]);
-  const [formData, setFormData] = useState({
-    startDate: '',
-    endDate: '',
-    equipmentType: '',
-    dataTypes: [] // Updated for multiple data types
-  });
-  const [dataTypes, setDataTypes] = useState([]);
+  const [startDate, setStartDate] = useState(getToday());
+  const [endDate, setEndDate] = useState(getToday());
+  const [selectedIndexes, setSelectedIndexes] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleNext = () => {
-    setActiveStep((prevActiveStep) => prevActiveStep + 1);
+  useEffect(() => {
+    const savedStartDate = localStorage.getItem('startDate');
+    const savedEndDate = localStorage.getItem('endDate');
+    if (savedStartDate) setStartDate(savedStartDate);
+    if (savedEndDate) setEndDate(savedEndDate);
+  }, []);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    if (name === 'startDate') {
+      setStartDate(value);
+      localStorage.setItem('startDate', value);
+    } else if (name === 'endDate') {
+      setEndDate(value);
+      localStorage.setItem('endDate', value);
+    }
+  };
+
+  const handleIndexChange = (event) => {
+    const { value } = event.target;
+    setSelectedIndexes((prev) =>
+      prev.includes(value)
+        ? prev.filter((v) => v !== value)
+        : [...prev, value]
+    );
+  };
+
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setSelectedFile(e.target.files[0]);
+    } else {
+      setSelectedFile(null);
+    }
+  };
+
+  const handleNext = async () => {
+    if (activeStep === 2) {
+      setLoading(true);
+      setError(null);
+      emitter.emit('spatiotemporalAnalysisLoading');
+      const formData = new FormData();
+      formData.append('startDate', startDate);
+      formData.append('endDate', endDate);
+      selectedIndexes.forEach(idx => formData.append('indices[]', idx));
+      if (selectedFile) {
+        formData.append('aoiDataFiles', selectedFile);
+      }
+      try {
+        const response = await fetch('http://localhost:500/get_spatiotemporal', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await response.json();
+        setLoading(false);
+        if (data.success && Array.isArray(data.output)) {
+          emitter.emit('newLayer', {
+            id: data.output[2],
+            visible: true,
+            transparency: 100,
+            min: data.output[4],
+            max: data.output[5],
+            dataset: data.output[6]
+          });
+          emitter.emit('setBandDates', Array.isArray(data.output[6]) ? data.output[6].map(d => d.Date).filter(Boolean) : []);
+          emitter.emit('moveURL', data.output);
+          emitter.emit('closeAllController');
+          emitter.emit('openLayerController');
+        } else if (data && data.output) {
+          emitter.emit('moveURL', data.output);
+          emitter.emit('closeAllController');
+          emitter.emit('openLayerController');
+        } else {
+          setError(data.error || 'No se recibió una respuesta válida del backend.');
+        }
+      } catch (err) {
+        setLoading(false);
+        setError('Error de red o del servidor');
+      }
+    } else {
+      setActiveStep((prev) => prev + 1);
+    }
   };
 
   const handleBack = () => {
-    setActiveStep((prevActiveStep) => prevActiveStep - 1);
-  };
-
-  const handleReset = () => {
-    setActiveStep(0);
-    setFormData({
-      startDate: '',
-      endDate: '',
-      equipmentType: '',
-      dataTypes: []
-    });
-    setPlotData([]);
-  };
-
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-    setFormData((prevFormData) => ({
-      ...prevFormData,
-      [name]: value
-    }));
-
-    if (name === 'equipmentType') {
-      fetchEquipmentDataTypes(value);
-    }
-  };
-
-  const fetchEquipmentDataTypes = async (type) => {
-    try {
-      const response = await fetch(`http://localhost:5003/dataTypes/${type}`);
-      const data = await response.json();
-      setDataTypes(data);
-    } catch (error) {
-      console.error("Error fetching data types: ", error);
-    }
-  };
-
-  const units = {
-    "Temperatura del aire HC": "°C",
-    "Temperatura del bulbo húmedo": "°C",
-    "Punto de Rocío": "°C",
-    "Radiación solar": "W/m2",
-    "DPV": "kPa",
-    "Humedad relativa HC": "%",
-    "Precipitación": "mm",
-    "Humedad de la hoja": "mín",
-    "Velocidad de Viento": "m/s",
-    "Ráfagas de Viento": "m/s",
-    "Dirección de Viento": "deg",
-    "EnviroPro, sensor de humedad del suelo 1": "%",
-    "EnviroPro, sensor de humedad del suelo 2": "%",
-    "EnviroPro, sensor de humedad del suelo 3": "%",
-    "EnviroPro, sensor de humedad del suelo 4": "%",
-    "EnviroPro, sensor de humedad del suelo 5": "%",
-    "EnviroPro, sensor de humedad del suelo 6": "%",
-    "EnviroPro, sensor de humedad del suelo 7": "%",
-    "EnviroPro, sensor de humedad del suelo 8": "%",
-    "EnviroPro, sensor de temperatura del suelo 1": "°C",
-    "EnviroPro, sensor de temperatura del suelo 2": "°C",
-    "EnviroPro, sensor de temperatura del suelo 3": "°C",
-    "EnviroPro, sensor de temperatura del suelo 4": "°C",
-    "EnviroPro, sensor de temperatura del suelo 5": "°C",
-    "EnviroPro, sensor de temperatura del suelo 6": "°C",
-    "EnviroPro, sensor de temperatura del suelo 7": "°C",
-    "EnviroPro, sensor de temperatura del suelo 8": "°C",
-    "Panel solar": "mV",
-    "Batería": "mV",
-    "DeltaT": "°C",
-    "Duración del sol": "mín"
-  };
-
-  const obtenerUnidad = (tipoDato) => {
-    return units[tipoDato] || "";
-  };
-
-  const downloadCSV = () => {
-    const rows = plotData.flatMap((trace) => {
-      return trace.x.map((date, index) => ({
-        Date: date.toISOString(),
-        Value: trace.y[index],
-        Trace: trace.name
-      }));
-    });
-
-    const csvContent = [
-      ['Date', 'Value', 'Trace'], // Headers
-      ...rows.map((row) => [row.Date, row.Value, row.Trace])
-    ]
-      .map((e) => e.join(','))
-      .join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    saveAs(blob, 'data.csv');
-  };
-
-  const processPlotData = (data) => {
-    const traces = formData.dataTypes.map((dataType) => {
-    console.log(dataType)
-    const filteredData = data
-      .filter((item) => item.measurement === dataType)
-      .sort((a, b) => new Date(a.sampling_date) - new Date(b.sampling_date)); // Ordenar por fecha
-      console.log(filteredData)
-      return {
-        type: 'scatter',
-        mode: 'lines',
-        x: filteredData.map(item => new Date(item.sampling_date)),
-        y: filteredData.map(item => item.measurement_value),
-        name: `${dataType} (${obtenerUnidad(dataType)})`
-      };
-    });
-
-    setPlotData(traces);
-  };
-
-  const fetchData = async () => {
-    try {
-      const response = await fetch(`http://localhost:5003/data`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          category: formData.equipmentType,
-          dataTypes: formData.dataTypes,
-          startDate: formData.startDate,
-          endDate: formData.endDate
-        })
-      });
-
-      const result = await response.json();
-
-      if (result && result.data) {
-        const data = JSON.parse(result.data);
-        console.log(data)
-        processPlotData(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch data: ", error);
-    }
-  };
-
-  const getStepContent = (step) => {
-    switch (step) {
-      case 0:
-        return (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
-            <TextField
-              label="Start Date"
-              type="date"
-              name="startDate"
-              value={formData.startDate}
-              onChange={handleChange}
-              InputLabelProps={{ shrink: true }}
-              sx={{ margin: 1 }}
-            />
-            <TextField
-              label="End Date"
-              type="date"
-              name="endDate"
-              value={formData.endDate}
-              onChange={handleChange}
-              InputLabelProps={{ shrink: true }}
-              sx={{ margin: 1 }}
-            />
-          </Box>
-        );
-      case 1:
-        return (
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <InputLabel id="equipment-type-label">Equipment Type</InputLabel>
-            <Select
-              labelId="equipment-type-label"
-              id="equipment-type-select"
-              value={formData.equipmentType}
-              onChange={handleChange}
-              name="equipmentType"
-              sx={{ width: 200, margin: 1 }}
-            >
-              <MenuItem value="Sensors">Sensors</MenuItem>
-            </Select>
-          </Box>
-        );
-      case 2:
-        return (
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <InputLabel id="data-type-label">Data Types</InputLabel>
-            <Select
-              labelId="data-type-label"
-              id="data-type-select"
-              multiple
-              value={formData.dataTypes}
-              onChange={handleChange}
-              name="dataTypes"
-              input={<OutlinedInput />}
-              renderValue={(selected) => selected.join(', ')}
-              sx={{ width: 300, margin: 1 }}
-            >
-              {dataTypes.map((type) => (
-                <MenuItem key={type} value={type}>
-                  <Checkbox checked={formData.dataTypes.indexOf(type) > -1} />
-                  <ListItemText primary={type} />
-                </MenuItem>
-              ))}
-            </Select>
-          </Box>
-        );
-      default:
-        return 'Unknown step';
-    }
+    setActiveStep((prev) => prev - 1);
   };
 
   return (
-    <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-      <Stepper activeStep={activeStep} sx={{ width: '80%', marginBottom: 2 }}>
+    <Box sx={{ width: 400, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#fff', borderRadius: 3, boxShadow: 2, p: 0, mt: 2 }}>
+      <Stepper activeStep={activeStep} alternativeLabel sx={{ width: '100%', mb: 2, mt: 1 }}>
         {steps.map((label) => (
           <Step key={label}>
             <StepLabel>{label}</StepLabel>
           </Step>
         ))}
       </Stepper>
-      <div>
-        {activeStep === steps.length ? (
-          <>
-            <Typography sx={{ mt: 2, mb: 1 }} />
-
-            <Plot data={plotData} layout={{ title: 'Data Visualization' }} />
-            <Button onClick={handleReset}>Reset</Button>
-            <Button variant="contained" color="primary" onClick={downloadCSV}>
-                Descargar CSV
-              </Button>
-          </>
-        ) : (
-          <>
-            {getStepContent(activeStep)}
-            <Box sx={{ display: 'flex', flexDirection: 'row', pt: 2, alignItems: 'center', justifyContent: 'center' }}>
-              <Button disabled={activeStep === 0} onClick={handleBack}>
-                Back
-              </Button>
-              <Button onClick={() => { if (activeStep === steps.length - 1) fetchData(); handleNext(); }}>
-                {activeStep === steps.length - 1 ? 'Finish' : 'Next'}
-              </Button>
-            </Box>
-          </>
-        )}
-      </div>
+      {activeStep === 0 && (
+        <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', mb: 2, mt: 2 }}>
+          <TextField
+            label="Start Date"
+            type="date"
+            name="startDate"
+            value={startDate}
+            onChange={handleChange}
+            InputLabelProps={{ shrink: true }}
+            sx={{ mb: 3, minWidth: 220, background: '#fafafa', borderRadius: 1 }}
+            inputProps={{ style: { textAlign: 'center' } }}
+          />
+          <TextField
+            label="End Date"
+            type="date"
+            name="endDate"
+            value={endDate}
+            onChange={handleChange}
+            InputLabelProps={{ shrink: true }}
+            sx={{ minWidth: 220, background: '#fafafa', borderRadius: 1 }}
+            inputProps={{ style: { textAlign: 'center' } }}
+          />
+        </Box>
+      )}
+      {activeStep === 1 && (
+        <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', mb: 1, mt: 1 }}>
+          <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 500 }}>
+            Selecciona los índices a analizar
+          </Typography>
+          <FormGroup>
+            {indexOptions.map((option) => (
+              <FormControlLabel
+                key={option.value}
+                control={
+                  <Checkbox
+                    checked={selectedIndexes.includes(option.value)}
+                    onChange={handleIndexChange}
+                    value={option.value}
+                  />
+                }
+                label={option.label}
+              />
+            ))}
+          </FormGroup>
+        </Box>
+      )}
+      {activeStep === 2 && (
+        <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', mb: 1, mt: 1 }}>
+          <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 500 }}>
+            Sube tu archivo de área de interés (.zip)
+          </Typography>
+          <Button
+            variant="outlined"
+            component="label"
+            startIcon={<UploadFileIcon />}
+            sx={{ mb: 2 }}
+          >
+            Seleccionar archivo ZIP
+            <input
+              type="file"
+              accept=".zip"
+              hidden
+              onChange={handleFileChange}
+            />
+          </Button>
+          {selectedFile && (
+            <Typography variant="body2" sx={{ color: '#333', mb: 1 }}>
+              Archivo seleccionado: {selectedFile.name}
+            </Typography>
+          )}
+        </Box>
+      )}
+      {error && (
+        <Typography color="error" sx={{ mt: 1 }}>{error}</Typography>
+      )}
+      {loading && (
+        <Typography color="primary" sx={{ mt: 1 }}>Procesando análisis espaciotemporal...</Typography>
+      )}
+      <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center', gap: 2, mt: 2, mb: 1 }}>
+        <Button disabled={activeStep === 0 || loading} sx={{ color: activeStep === 0 ? '#bdbdbd' : '#3f51b5' }} onClick={handleBack}>BACK</Button>
+        <Button
+          sx={{ color: '#3f51b5', fontWeight: 500 }}
+          onClick={handleNext}
+          disabled={(activeStep === 2 && !selectedFile) || loading}
+        >
+          {activeStep === 2 ? (loading ? 'Procesando...' : 'FINALIZAR') : 'NEXT'}
+        </Button>
+      </Box>
     </Box>
   );
 }

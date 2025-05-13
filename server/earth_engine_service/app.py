@@ -1310,8 +1310,298 @@ def get_spatiotemporal_analysis():
         print(str(e))
         return jsonify({"error": str(e)}), 500
 
-    
+@app.route('/api/spatiotemporal_analysis_v2', methods=['POST'])
+def spatiotemporal_analysis_v2():
+    """
+    Endpoint para análisis espaciotemporal: recibe fechas, indices y shapefile zip,
+    ejecuta el análisis GEE para los índices seleccionados y devuelve los resultados.
+    """
+    try:
+        # Validar y obtener parámetros
+        indices = request.form.getlist('indices[]') or request.form.getlist('indices')
+        startdate = request.form.get('startDate')
+        enddate = request.form.get('endDate')
+        if 'aoiDataFiles' not in request.files:
+            return jsonify({"error": "No se subió el archivo ZIP"}), 400
+        aoi_file = request.files['aoiDataFiles']
+        if not indices or not startdate or not enddate:
+            return jsonify({"error": "Faltan parámetros obligatorios"}), 400
 
+        # Guardar y leer el shapefile zip
+        with tempfile.TemporaryDirectory() as temp_dir:
+            zip_path = os.path.join(temp_dir, secure_filename(aoi_file.filename))
+            aoi_file.save(zip_path)
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(temp_dir)
+            # Buscar el .shp extraído
+            shp_files = [f for f in os.listdir(temp_dir) if f.endswith('.shp')]
+            if not shp_files:
+                return jsonify({"error": "No se encontró el .shp en el ZIP"}), 400
+            shp_path = os.path.join(temp_dir, shp_files[0])
+            gdf = gpd.read_file(shp_path)
+            geojson_dict = gdf.__geo_interface__
+            aoi = ee.FeatureCollection(geojson_dict['features'])
+
+            # Fechas
+            start = startdate
+            end = enddate
+
+            results = {}
+            # --- EVI ---
+            if 'EVI' in indices:
+                evi = ee.ImageCollection("MODIS/061/MOD13A1").select('EVI')
+                eviCollection = evi.filterDate(start, end).filterBounds(aoi).select("EVI")
+                def calculateMonthlyEVI(year, month):
+                    monthly = eviCollection.filter(ee.Filter.calendarRange(year, year, 'year'))\
+                        .filter(ee.Filter.calendarRange(month, month, 'month'))
+                    count = monthly.size()
+                    monthlyEVI = monthly.mean()
+                    return ee.Algorithms.If(
+                        count.gt(0),
+                        monthlyEVI.set('year', year).set('month', month).set('system:time_start', ee.Date.fromYMD(year, month, 1)),
+                        None
+                    )
+                years = ee.List.sequence(int(start[:4]), int(end[:4]))
+                months = ee.List.sequence(1, 12)
+                monthlyEVIList = years.map(lambda year: months.map(lambda month: calculateMonthlyEVI(year, month))).flatten()
+                monthlyEVICollection = ee.ImageCollection.fromImages(monthlyEVIList).filter(ee.Filter.notNull(['system:time_start']))
+                def safeEviFeature(image):
+                    value = image.reduceRegion(ee.Reducer.mean(), aoi, 30).get('EVI')
+                    return ee.Algorithms.If(
+                        ee.Algorithms.IsEqual(value, None),
+                        None,
+                        ee.Feature(None, {
+                            'Date': ee.Date(image.get('system:time_start')).format('YYYY-MM'),
+                            'EVI': value
+                        })
+                    )
+                filteredFeaturesEvi = monthlyEVICollection.map(safeEviFeature).filter(ee.Filter.notNull(['EVI']))
+                features = ee.FeatureCollection(filteredFeaturesEvi).getInfo()['features']
+                data = [f['properties'] for f in features]
+                results['EVI'] = data
+            # --- Precipitación (CHIRPS) ---
+            if 'Precipitation' in indices:
+                chirps = ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY").select('precipitation')
+                chirpsCollection = chirps.filterDate(start, end).filterBounds(aoi)
+                def calculateMonthlyPrecipitation(year, month):
+                    monthly = chirpsCollection.filter(ee.Filter.calendarRange(year, year, 'year'))\
+                        .filter(ee.Filter.calendarRange(month, month, 'month'))
+                    count = monthly.size()
+                    monthlyPrecipitation = monthly.mean()
+                    return ee.Algorithms.If(
+                        count.gt(0),
+                        monthlyPrecipitation.set('year', year).set('month', month).set('system:time_start', ee.Date.fromYMD(year, month, 1)),
+                        None
+                    )
+                years = ee.List.sequence(int(start[:4]), int(end[:4]))
+                months = ee.List.sequence(1, 12)
+                monthlyPrecipList = years.map(lambda year: months.map(lambda month: calculateMonthlyPrecipitation(year, month))).flatten()
+                monthlyPrecipCollection = ee.ImageCollection.fromImages(monthlyPrecipList).filter(ee.Filter.notNull(['system:time_start']))
+                def safePrecipFeature(image):
+                    value = image.reduceRegion(ee.Reducer.mean(), aoi, 30).get('precipitation')
+                    return ee.Algorithms.If(
+                        ee.Algorithms.IsEqual(value, None),
+                        None,
+                        ee.Feature(None, {
+                            'Date': ee.Date(image.get('system:time_start')).format('YYYY-MM'),
+                            'Precipitation': value
+                        })
+                    )
+                filteredFeaturesPrecip = monthlyPrecipCollection.map(safePrecipFeature).filter(ee.Filter.notNull(['Precipitation']))
+                features = ee.FeatureCollection(filteredFeaturesPrecip).getInfo()['features']
+                data = [f['properties'] for f in features]
+                results['Precipitation'] = data
+            # --- LST ---
+            if 'LST' in indices:
+                lst = ee.ImageCollection("MODIS/061/MOD11A2").select('LST_Day_1km')
+                lstCollection = lst.filterDate(start, end).filterBounds(aoi).select("LST_Day_1km")
+                def myLst(myimg):
+                    d = ee.Date(myimg.get('system:time_start'))
+                    y = d.get('year').toInt()
+                    m = d.get('month').toInt()
+                    LSTm = lstCollection.filter(ee.Filter.calendarRange(y, y, 'year')).filter(ee.Filter.calendarRange(m, m, 'month')).mean()
+                    return LSTm.copyProperties(myimg, ['system:time_start'])
+                monthlyLSTCollection = ee.ImageCollection(lstCollection.map(myLst))
+                filteredFeaturesLST = monthlyLSTCollection.filterDate(start, end).map(lambda image: ee.Feature(None, {
+                    'Date': ee.Date(image.get('system:time_start')).format('YYYY-MM'),
+                    'LST': image.reduceRegion(ee.Reducer.firstNonNull(), aoi, 30).get('LST_Day_1km')
+                })).filter(ee.Filter.notNull(['LST']))
+                features = filteredFeaturesLST.getInfo()['features']
+                data = [f['properties'] for f in features]
+                results['LST'] = data
+            # --- Percent Tree Cover ---
+            if 'Percent_Tree_Cover' in indices:
+                cover = ee.ImageCollection('MODIS/006/MOD44B').select('Percent_Tree_Cover')
+                coverCollection = cover.filterDate(start, end).filterBounds(aoi).select("Percent_Tree_Cover")
+                def myCover(myimg):
+                    d = ee.Date(myimg.get('system:time_start'))
+                    y = d.get('year').toInt()
+                    m = d.get('month').toInt()
+                    Coverm = coverCollection.filter(ee.Filter.calendarRange(y, y, 'year')).filter(ee.Filter.calendarRange(m, m, 'month')).mean()
+                    return Coverm.copyProperties(myimg, ['system:time_start'])
+                monthlyCoverCollection = ee.ImageCollection(coverCollection.map(myCover))
+                filteredFeaturesCover = monthlyCoverCollection.filterDate(start, end).map(lambda image: ee.Feature(None, {
+                    'Date': ee.Date(image.get('system:time_start')).format('YYYY-MM'),
+                    'Percent_Tree_Cover': image.reduceRegion(ee.Reducer.firstNonNull(), aoi, 30).get('Percent_Tree_Cover')
+                })).filter(ee.Filter.notNull(['Percent_Tree_Cover']))
+                features = filteredFeaturesCover.getInfo()['features']
+                data = [f['properties'] for f in features]
+                results['Percent_Tree_Cover'] = data
+            return jsonify({"success": True, "results": results, "geojson": geojson_dict}), 200
+    except Exception as e:
+        print(str(e))
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/get_spatiotemporal', methods=['POST'])
+def get_spatiotemporal():
+    try:
+        indices = request.form.getlist('indices[]') or request.form.getlist('indices')
+        startdate = request.form.get('startDate')
+        enddate = request.form.get('endDate')
+        if 'aoiDataFiles' not in request.files:
+            return jsonify({"error": "No se subió el archivo ZIP"}), 400
+        aoi_file = request.files['aoiDataFiles']
+        if not indices or not startdate or not enddate:
+            return jsonify({"error": "Faltan parámetros obligatorios"}), 400
+        with tempfile.TemporaryDirectory() as temp_dir:
+            zip_path = os.path.join(temp_dir, secure_filename(aoi_file.filename))
+            aoi_file.save(zip_path)
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(temp_dir)
+            shp_files = [f for f in os.listdir(temp_dir) if f.endswith('.shp')]
+            if not shp_files:
+                return jsonify({"error": "No se encontró el .shp en el ZIP"}), 400
+            shp_path = os.path.join(temp_dir, shp_files[0])
+            gdf = gpd.read_file(shp_path)
+            geojson_dict = gdf.__geo_interface__
+            aoi = ee.FeatureCollection(geojson_dict['features'])
+            start = startdate
+            end = enddate
+            # Para compatibilidad, solo se usará el primer índice seleccionado
+            idx = indices[0] if indices else 'EVI'
+            # --- EVI ---
+            if idx == 'EVI':
+                evi = ee.ImageCollection("MODIS/061/MOD13A1").select('EVI')
+                eviCollection = evi.filterDate(start, end).filterBounds(aoi).select("EVI")
+                def calculateMonthlyEVI(year, month):
+                    monthly = eviCollection.filter(ee.Filter.calendarRange(year, year, 'year'))\
+                        .filter(ee.Filter.calendarRange(month, month, 'month'))
+                    count = monthly.size()
+                    monthlyEVI = monthly.mean()
+                    return ee.Algorithms.If(
+                        count.gt(0),
+                        monthlyEVI.set('year', year).set('month', month).set('system:time_start', ee.Date.fromYMD(year, month, 1)),
+                        None
+                    )
+                years = ee.List.sequence(int(start[:4]), int(end[:4]))
+                months = ee.List.sequence(1, 12)
+                monthlyEVIList = years.map(lambda year: months.map(lambda month: calculateMonthlyEVI(year, month))).flatten()
+                monthlyEVICollection = ee.ImageCollection.fromImages(monthlyEVIList).filter(ee.Filter.notNull(['system:time_start']))
+                def safeEviFeature(image):
+                    value = image.reduceRegion(ee.Reducer.mean(), aoi, 30).get('EVI')
+                    return ee.Algorithms.If(
+                        ee.Algorithms.IsEqual(value, None),
+                        None,
+                        ee.Feature(None, {
+                            'Date': ee.Date(image.get('system:time_start')).format('YYYY-MM'),
+                            'EVI': value
+                        })
+                    )
+                filteredFeaturesEvi = monthlyEVICollection.map(safeEviFeature).filter(ee.Filter.notNull(['EVI']))
+                features = ee.FeatureCollection(filteredFeaturesEvi).getInfo()['features']
+                data = [f['properties'] for f in features]
+                # Simular url, min, max para compatibilidad
+                map_url = 'spatiotemporal_evi_url'
+                layer_id = 'spatiotemporal_evi_layer'
+                min_val = min([d['EVI'] for d in data if d['EVI'] is not None]) if data else 0
+                max_val = max([d['EVI'] for d in data if d['EVI'] is not None]) if data else 1
+                output = [map_url, None, layer_id, None, min_val, max_val, data]
+            # --- Precipitación (CHIRPS) ---
+            elif idx == 'Precipitation':
+                chirps = ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY").select('precipitation')
+                chirpsCollection = chirps.filterDate(start, end).filterBounds(aoi)
+                def calculateMonthlyPrecipitation(year, month):
+                    monthly = chirpsCollection.filter(ee.Filter.calendarRange(year, year, 'year'))\
+                        .filter(ee.Filter.calendarRange(month, month, 'month'))
+                    count = monthly.size()
+                    monthlyPrecipitation = monthly.mean()
+                    return ee.Algorithms.If(
+                        count.gt(0),
+                        monthlyPrecipitation.set('year', year).set('month', month).set('system:time_start', ee.Date.fromYMD(year, month, 1)),
+                        None
+                    )
+                years = ee.List.sequence(int(start[:4]), int(end[:4]))
+                months = ee.List.sequence(1, 12)
+                monthlyPrecipList = years.map(lambda year: months.map(lambda month: calculateMonthlyPrecipitation(year, month))).flatten()
+                monthlyPrecipCollection = ee.ImageCollection.fromImages(monthlyPrecipList).filter(ee.Filter.notNull(['system:time_start']))
+                def safePrecipFeature(image):
+                    value = image.reduceRegion(ee.Reducer.mean(), aoi, 30).get('precipitation')
+                    return ee.Algorithms.If(
+                        ee.Algorithms.IsEqual(value, None),
+                        None,
+                        ee.Feature(None, {
+                            'Date': ee.Date(image.get('system:time_start')).format('YYYY-MM'),
+                            'Precipitation': value
+                        })
+                    )
+                filteredFeaturesPrecip = monthlyPrecipCollection.map(safePrecipFeature).filter(ee.Filter.notNull(['Precipitation']))
+                features = ee.FeatureCollection(filteredFeaturesPrecip).getInfo()['features']
+                data = [f['properties'] for f in features]
+                map_url = 'spatiotemporal_precip_url'
+                layer_id = 'spatiotemporal_precip_layer'
+                min_val = min([d['Precipitation'] for d in data if d['Precipitation'] is not None]) if data else 0
+                max_val = max([d['Precipitation'] for d in data if d['Precipitation'] is not None]) if data else 1
+                output = [map_url, None, layer_id, None, min_val, max_val, data]
+            # --- LST ---
+            elif idx == 'LST':
+                lst = ee.ImageCollection("MODIS/061/MOD11A2").select('LST_Day_1km')
+                lstCollection = lst.filterDate(start, end).filterBounds(aoi).select("LST_Day_1km")
+                def myLst(myimg):
+                    d = ee.Date(myimg.get('system:time_start'))
+                    y = d.get('year').toInt()
+                    m = d.get('month').toInt()
+                    LSTm = lstCollection.filter(ee.Filter.calendarRange(y, y, 'year')).filter(ee.Filter.calendarRange(m, m, 'month')).mean()
+                    return LSTm.copyProperties(myimg, ['system:time_start'])
+                monthlyLSTCollection = ee.ImageCollection(lstCollection.map(myLst))
+                filteredFeaturesLST = monthlyLSTCollection.filterDate(start, end).map(lambda image: ee.Feature(None, {
+                    'Date': ee.Date(image.get('system:time_start')).format('YYYY-MM'),
+                    'LST': image.reduceRegion(ee.Reducer.firstNonNull(), aoi, 30).get('LST_Day_1km')
+                })).filter(ee.Filter.notNull(['LST']))
+                features = filteredFeaturesLST.getInfo()['features']
+                data = [f['properties'] for f in features]
+                map_url = 'spatiotemporal_lst_url'
+                layer_id = 'spatiotemporal_lst_layer'
+                min_val = min([d['LST'] for d in data if d['LST'] is not None]) if data else 0
+                max_val = max([d['LST'] for d in data if d['LST'] is not None]) if data else 1
+                output = [map_url, None, layer_id, None, min_val, max_val, data]
+            # --- Percent Tree Cover ---
+            elif idx == 'Percent_Tree_Cover':
+                cover = ee.ImageCollection('MODIS/006/MOD44B').select('Percent_Tree_Cover')
+                coverCollection = cover.filterDate(start, end).filterBounds(aoi).select("Percent_Tree_Cover")
+                def myCover(myimg):
+                    d = ee.Date(myimg.get('system:time_start'))
+                    y = d.get('year').toInt()
+                    m = d.get('month').toInt()
+                    Coverm = coverCollection.filter(ee.Filter.calendarRange(y, y, 'year')).filter(ee.Filter.calendarRange(m, m, 'month')).mean()
+                    return Coverm.copyProperties(myimg, ['system:time_start'])
+                monthlyCoverCollection = ee.ImageCollection(coverCollection.map(myCover))
+                filteredFeaturesCover = monthlyCoverCollection.filterDate(start, end).map(lambda image: ee.Feature(None, {
+                    'Date': ee.Date(image.get('system:time_start')).format('YYYY-MM'),
+                    'Percent_Tree_Cover': image.reduceRegion(ee.Reducer.firstNonNull(), aoi, 30).get('Percent_Tree_Cover')
+                })).filter(ee.Filter.notNull(['Percent_Tree_Cover']))
+                features = filteredFeaturesCover.getInfo()['features']
+                data = [f['properties'] for f in features]
+                map_url = 'spatiotemporal_treecover_url'
+                layer_id = 'spatiotemporal_treecover_layer'
+                min_val = min([d['Percent_Tree_Cover'] for d in data if d['Percent_Tree_Cover'] is not None]) if data else 0
+                max_val = max([d['Percent_Tree_Cover'] for d in data if d['Percent_Tree_Cover'] is not None]) if data else 1
+                output = [map_url, None, layer_id, None, min_val, max_val, data]
+            else:
+                return jsonify({"error": "Índice no soportado"}), 400
+            return jsonify({"success": True, "output": output}), 200
+    except Exception as e:
+        print(str(e))
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(port=500)

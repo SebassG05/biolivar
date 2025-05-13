@@ -82,6 +82,8 @@ class Menu extends React.Component {
 
                     emitter.emit('closeAllController');
 
+                    emitter.emit('openSpatioTemporalAnalysisController');
+
                     this.handleClose();
 
                 }

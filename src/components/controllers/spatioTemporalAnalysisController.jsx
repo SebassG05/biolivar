@@ -373,8 +373,8 @@ class SpatioTemporalAnalysisController extends React.Component {
                     <Card style={styles.root}>
                         {/* Card header */}
                         <CardContent style={styles.header}>
-                        <Typography gutterBottom style={{ fontFamily: 'Lato, Arial, sans-serif', color:'white', fontWeight:'3' }} variant="h5" component="h2">Spatiotemporal Analysis</Typography>
-                            <Typography variant="body2" color="textSecondary">Upload your shape and obtain your analysis</Typography>
+                        <Typography gutterBottom style={{ fontFamily: 'Lato, Arial, sans-serif', color:'white', fontWeight:'3' }} variant="h5" component="h2">Análisis Espaciotemporal</Typography>
+                            <Typography variant="body2" color="textSecondary">Actualiza tu shape y obten tu análisis.</Typography>
                         </CardContent>
 		<CardContent style={styles.content}>
 		<HorizontalLinearStepperData/>

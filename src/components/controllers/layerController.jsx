@@ -822,16 +822,12 @@ class LayerController extends React.Component {
         const isSpatiotemporalOnly = this.defineSpatiotemporalOnly();
         const onlySpatiotemporal = Array.isArray(this.state.layers) && this.state.layers.length > 0 && this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('SPATIO')).length === this.state.layers.filter(l => l.visible).length;
         // Determinar si el panel de Cambios en la vegetación debe estar bloqueado
-        // Debe estar bloqueado SIEMPRE salvo cuando la única capa visible es de tipo 'VICI'
-        const blockVegChangePanel = false; // Eliminado el bloqueo visual
-        const vegBlockStyle = blockVegChangePanel
-            ? {
-                background: '#f0f0f0', // Unificar con el panel de análisis espaciotemporal
-                color: '#aaa',
-                opacity: 0.4,
-                cursor: 'not-allowed'
-            }
-            : {};
+        const blockVegetation = !this.state.layers.some(l => l.visible && l.id && l.id.toUpperCase().includes('VICI'));
+        // Determinar si el análisis espaciotemporal debe estar bloqueado
+        const spatiotemporalActive = this.state.selectedSpatioVariables && this.state.selectedSpatioVariables.length > 0;
+        const blockSpatiotemporal = !(this.state.selectedSpatioVariables && this.state.selectedSpatioVariables.length > 0);
+        // Cálculo de cuántas capas de variable (índices) hay activas (no VICI, no SPATIO)
+        const activeVariableLayers = this.state.layers.filter(l => l.visible && l.id && !l.id.toUpperCase().includes('VICI') && !l.id.toUpperCase().includes('SPATIO') && (['NDVI','EVI','GNDVI','NDMI','MSI','BI','SAVI'].some(idx => l.id.toUpperCase().includes(idx))));
         // Si no hay ninguna capa visible, forzar a cerrar los paneles y no mostrar leyenda
         if (visibleLayers.length === 0) {
             return (
@@ -1239,26 +1235,26 @@ class LayerController extends React.Component {
                                             display: 'flex',
                                             justifyContent: 'space-between',
                                             alignItems: 'center',
+                                            cursor: blockVegetation ? 'not-allowed' : 'pointer',
                                             padding: '10px 0',
                                             borderBottom: '1px solid #eee',
-                                            background: Array.isArray(this.state.layers) && this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('VICI')).length === 0 ? '#f0f0f0' : undefined,
-                                            color: Array.isArray(this.state.layers) && this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('VICI')).length === 0 ? '#aaa' : undefined,
-                                            opacity: Array.isArray(this.state.layers) && this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('VICI')).length === 0 ? 0.4 : 1,
-                                            cursor: 'pointer',
+                                            opacity: blockVegetation ? 0.4 : 1,
+                                            background: blockVegetation ? '#f0f0f0' : undefined,
+                                            color: blockVegetation ? '#aaa' : undefined
                                         }}
                                     >
-                                        <div style={{ display: 'flex', alignItems: 'center', color: Array.isArray(this.state.layers) && this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('VICI')).length === 0 ? '#aaa' : undefined }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', color: blockVegetation ? '#aaa' : undefined }}>
                                             <Typography variant="body2"><strong><b>Cambios en la vegetación</b></strong></Typography>
-                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.setState({ infoOpen: !this.state.infoOpen }); }} style={{ marginLeft: 6, color: Array.isArray(this.state.layers) && this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('VICI')).length === 0 ? '#aaa' : '#1976d2' }} disabled={Array.isArray(this.state.layers) && this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('VICI')).length === 0}>
+                                            <IconButton size="small" onClick={e => { if (!blockVegetation) { e.stopPropagation(); this.setState({ infoOpen: !this.state.infoOpen }); } }} style={{ marginLeft: 6, color: blockVegetation ? '#aaa' : '#1976d2' }} disabled={blockVegetation}>
                                                 <Icon style={{ fontSize: 18 }}>info</Icon>
                                             </IconButton>
                                         </div>
-                                        <Icon style={{ color: Array.isArray(this.state.layers) && this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('VICI')).length === 0 ? '#aaa' : undefined, cursor: 'pointer' }} onClick={e => { e.stopPropagation(); this.toggleVegetationLegend(); }}>
+                                        <Icon style={{ color: blockVegetation ? '#aaa' : undefined, cursor: blockVegetation ? 'not-allowed' : 'pointer' }} onClick={e => { if (!blockVegetation) { e.stopPropagation(); this.toggleVegetationLegend(); } }}>
                                             {this.state.showVegetationLegend ? 'expand_less' : 'expand_more'}
                                         </Icon>
                                     </div>
                                     {/* Info collapsible */}
-                                    <Collapse in={this.state.infoOpen} timeout="auto" unmountOnExit>
+                                    <Collapse in={this.state.infoOpen && !blockVegetation} timeout="auto" unmountOnExit>
                                         <div style={{ padding: '12px 16px', background: '#f9f9f9', borderRadius: 8, margin: '8px 0' }}>
                                             <Typography variant="subtitle2" gutterBottom><b>¿Para qué sirve esta funcionalidad?</b></Typography>
                                             <Typography variant="body2" style={{ textAlign: 'justify' }}>
@@ -1267,9 +1263,9 @@ class LayerController extends React.Component {
                                             </Typography>
                                         </div>
                                     </Collapse>
-                                    <Collapse in={this.state.showVegetationLegend} timeout="auto" unmountOnExit>
+                                    <Collapse in={this.state.showVegetationLegend && !blockVegetation} timeout="auto" unmountOnExit>
                                         <div style={{ padding: '10px 0', textAlign: 'center', position: 'relative' }}>
-                                            {Array.isArray(this.state.layers) && this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('VICI')).length === 0 && (
+                                            {blockVegetation && (
                                                 <div style={{
                                                     width: '100%',
                                                     height: 60,
@@ -1358,9 +1354,9 @@ class LayerController extends React.Component {
                                     </Collapse>
                                     <Collapse in={this.state.showSurfaceAnalysisLegend && !onlySpatiotemporal} timeout="auto" unmountOnExit>
                                         <div style={{ padding: '10px 0', textAlign: 'center', maxHeight: '250px', overflowY: 'auto' }}>
-                                            {showSurfaceAnalysis && (
+                                            {(activeVariableLayers.length > 0 && topVisibleLayer) && (
                                                 <div style={{ width: '100%' }}>
-                                                    {visibleLayers.length > 1 && (
+                                                    {activeVariableLayers.length === 2 && (
                                                         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 8 }}>
                                                             <button onClick={this.handleLegendPrev} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer' }}>{'<'}</button>
                                                             <span style={{ margin: '0 8px', fontWeight: 'bold' }}>
@@ -1378,13 +1374,11 @@ class LayerController extends React.Component {
                                                             <button onClick={this.handleLegendNext} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer' }}>{'>'}</button>
                                                         </div>
                                                     )}
-                                                    {topVisibleLayer && (
-                                                        <div>
-                                                            {indexLegends[
-                                                                (['NDVI','EVI','GNDVI','NDMI','MSI','BI','SAVI'].find(idx => topVisibleLayer.id && topVisibleLayer.id.toUpperCase().includes(idx))) || 'NDVI'
-                                                            ]}
-                                                        </div>
-                                                    )}
+                                                    <div>
+                                                        {indexLegends[
+                                                            (['NDVI','EVI','GNDVI','NDMI','MSI','BI','SAVI'].find(idx => topVisibleLayer.id && topVisibleLayer.id.toUpperCase().includes(idx))) || 'NDVI'
+                                                        ]}
+                                                    </div>
                                                 </div>
                                             )}
                                             {dataset && dataset.length > 0 && (
@@ -1480,13 +1474,7 @@ class LayerController extends React.Component {
                                                                                         maxRotation: 60,
                                                                                         minRotation: 60,
                                                                                         font: { size: 12 },
-                                                                                        callback: function(value, index, values) {
-                                                                                            const label = this.getLabelForValue(value);
-                                                                                            if (typeof label === 'string' && label.match(/^\d{4}-\d{2}/)) {
-                                                                                                return label.substring(0, 7);
-                                                                                            }
-                                                                                            return label;
-                                                                                        }
+                                                                                        callback: function(value, index, values) {/* ...existing code... */}
                                                                                     }
                                                                                 },
                                                                                 y: {
@@ -1547,25 +1535,25 @@ class LayerController extends React.Component {
                                             display: 'flex',
                                             justifyContent: 'space-between',
                                             alignItems: 'center',
-                                            cursor: 'pointer', // SIEMPRE pointer
+                                            cursor: blockSpatiotemporal ? 'not-allowed' : 'pointer',
                                             padding: '10px 0',
                                             borderBottom: '1px solid #eee',
-                                            opacity: 1, // SIEMPRE activo
-                                            background: undefined, // SIN fondo gris
-                                            color: undefined // SIN color gris
+                                            opacity: blockSpatiotemporal ? 0.4 : 1,
+                                            background: blockSpatiotemporal ? '#f0f0f0' : undefined,
+                                            color: blockSpatiotemporal ? '#aaa' : undefined
                                         }}
                                     >
                                         <div style={{ display: 'flex', alignItems: 'center' }}>
                                             <Typography variant="body2"><strong><b>Análisis espaciotemporal</b></strong></Typography>
-                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.handleSpatiotemporalInfoClick(); }} style={{ marginLeft: 6, color: '#1976d2' }}>
+                                            <IconButton size="small" onClick={e => { if (!blockSpatiotemporal) { e.stopPropagation(); this.handleSpatiotemporalInfoClick(); } }} style={{ marginLeft: 6, color: blockSpatiotemporal ? '#aaa' : '#1976d2' }} disabled={blockSpatiotemporal}>
                                                 <Icon style={{ fontSize: 18 }}>info</Icon>
                                             </IconButton>
                                         </div>
-                                        <Icon style={{ cursor: 'pointer' }} onClick={e => { e.stopPropagation(); this.toggleSpatiotemporalLegend(); }}>
+                                        <Icon style={{ cursor: blockSpatiotemporal ? 'not-allowed' : 'pointer', color: blockSpatiotemporal ? '#aaa' : undefined }} onClick={e => { if (!blockSpatiotemporal) { e.stopPropagation(); this.toggleSpatiotemporalLegend(); } }}>
                                             {this.state.showSpatiotemporalLegend ? 'expand_less' : 'expand_more'}
                                         </Icon>
                                     </div>
-                                    <Collapse in={this.state.showSpatiotemporalInfo} timeout="auto" unmountOnExit>
+                                    <Collapse in={this.state.showSpatiotemporalInfo && !blockSpatiotemporal} timeout="auto" unmountOnExit>
                                         <div style={{ padding: '12px 16px', background: '#f9f9f9', borderRadius: 8, margin: '8px 0' }}>
                                             <Typography variant="subtitle2" gutterBottom><b>¿Para qué sirve el análisis espaciotemporal?</b></Typography>
                                             <Typography variant="body2" style={{ textAlign: 'justify' }}>
@@ -1573,7 +1561,7 @@ class LayerController extends React.Component {
                                             </Typography>
                                         </div>
                                     </Collapse>
-                                    <Collapse in={this.state.showSpatiotemporalLegend} timeout="auto" unmountOnExit>
+                                    <Collapse in={this.state.showSpatiotemporalLegend && !blockSpatiotemporal} timeout="auto" unmountOnExit>
                                         <div style={{ padding: '10px 0', textAlign: 'center', maxHeight: '350px', overflowY: 'auto' }}>
                                             {this.state.selectedSpatioVariables.length === 0 && (
                                                 <Typography variant="body2" color="textSecondary" style={{ marginTop: 12 }}>No hay índices seleccionados para mostrar.</Typography>

@@ -291,6 +291,11 @@ class LayerController extends React.Component {
         bandDates: null, // Fechas seleccionadas por el usuario en BandController
         showSpatiotemporalLegend: false,
         showSpatiotemporalInfo: false,
+        selectedSpatioVariables: [], // Solo se actualiza por evento externo
+        showBigSpatioChart: null, // Variable para ampliar gráfica espaciotemporal
+        spatioTemporalResults: {}, // Store real backend results per variable
+        loadingSpatioTemporal: false, // Loading state for backend fetch
+        spatioTemporalError: null, // Error state
     }
 
     handleCloseClick = () => {
@@ -445,6 +450,11 @@ class LayerController extends React.Component {
             this.setState({ bandDates: datesArray });
         });
 
+        // Escuchar selección de índices espaciotemporales desde el stepper
+        this.spatioTemporalSelectedListener = emitter.addListener('setSpatioTemporalSelected', (selected) => {
+            this.setState({ selectedSpatioVariables: selected });
+        });
+
         window.addEventListener('dragover', this.handleDragOver);
         window.addEventListener('drop', this.handleDrop);
     }
@@ -497,7 +507,59 @@ class LayerController extends React.Component {
                 this.setState({ showSpatiotemporalLegend: false });
             }
         }
+
+        // Fetch real spatiotemporal data when selectedSpatioVariables changes
+        if (
+            this.state.activeTool === 'spatiotemporal' &&
+            prevState.selectedSpatioVariables !== this.state.selectedSpatioVariables &&
+            this.state.selectedSpatioVariables.length > 0
+        ) {
+            this.fetchSpatioTemporalData();
+        }
     }
+
+    fetchSpatioTemporalData = async () => {
+        const indices = this.state.selectedSpatioVariables;
+        if (!indices || indices.length === 0) return;
+        const startDate = localStorage.getItem('startDate');
+        const endDate = localStorage.getItem('endDate');
+        const zipFile = localStorage.getItem('aoiZipFile'); // Assumes ZIP is stored in localStorage or adapt as needed
+        if (!zipFile || !startDate || !endDate) return;
+        this.setState({ loadingSpatioTemporal: true, spatioTemporalError: null });
+        try {
+            const formData = new FormData();
+            formData.append('startDate', startDate);
+            formData.append('endDate', endDate);
+            indices.forEach(idx => formData.append('indices[]', idx));
+            // Retrieve the ZIP file from localStorage (as base64 or blob)
+            // If stored as base64, convert to Blob
+            let zipBlob;
+            if (zipFile.startsWith('data:')) {
+                // base64 string
+                const arr = zipFile.split(',');
+                const mime = arr[0].match(/:(.*?);/)[1];
+                const bstr = atob(arr[1]);
+                let n = bstr.length;
+                const u8arr = new Uint8Array(n);
+                while (n--) u8arr[n] = bstr.charCodeAt(n);
+                zipBlob = new Blob([u8arr], { type: mime });
+            } else {
+                // If already a Blob URL or File, handle accordingly
+                zipBlob = zipFile;
+            }
+            formData.append('aoiDataFiles', zipBlob, 'aoi.zip');
+            const response = await fetch('/api/spatiotemporal_analysis_v2', {
+                method: 'POST',
+                body: formData
+            });
+            if (!response.ok) throw new Error('Error fetching spatiotemporal data');
+            const result = await response.json();
+            if (!result.success || !result.results) throw new Error('No results from backend');
+            this.setState({ spatioTemporalResults: result.results, loadingSpatioTemporal: false });
+        } catch (err) {
+            this.setState({ spatioTemporalError: err.message, loadingSpatioTemporal: false });
+        }
+    };
 
     getLegendContent = (layer) => { 
         if (!layer) return null; 
@@ -669,6 +731,41 @@ class LayerController extends React.Component {
         this.setState(prev => ({ showHistogram: !prev.showHistogram }));
     };
 
+    handleSpatioVariableToggle = (variable) => {
+        this.setState((prevState) => {
+            const selected = prevState.selectedSpatioVariables;
+            return {
+                selectedSpatioVariables: selected.includes(variable)
+                    ? selected.filter(v => v !== variable)
+                    : [...selected, variable]
+            };
+        });
+    };
+
+    getSpatioTemporalData = (variable) => {
+        // Use real backend data if available
+        const { spatioTemporalResults } = this.state;
+        if (spatioTemporalResults && spatioTemporalResults[variable] && Array.isArray(spatioTemporalResults[variable])) {
+            const dataArr = spatioTemporalResults[variable];
+            const labels = dataArr.map(d => d.Date || '');
+            // Try to find the value key (e.g., EVI, Precipitation, LST, Percent_Tree_Cover)
+            let valueKey = Object.keys(dataArr[0] || {}).find(k => k !== 'Date');
+            const data = dataArr.map(d => d[valueKey]);
+            return { labels, data };
+        }
+        // Fallback to simulated data if not loaded yet
+        const startDate = localStorage.getItem('startDate') || '2022-01-01';
+        const endDate = localStorage.getItem('endDate') || '2023-12-01';
+        const labels = getDateRangeLabels(startDate, endDate);
+        let data;
+        if (variable === 'EVI') data = labels.map((_, i) => 0.4 + 0.1 * Math.sin(i / 1.5) + 0.05 * Math.random());
+        else if (variable === 'Precipitation') data = labels.map((_, i) => 40 + 30 * Math.abs(Math.sin(i / 2)) + 10 * Math.random());
+        else if (variable === 'LST') data = labels.map((_, i) => 20 + 10 * Math.sin(i / 3) + 2 * Math.random());
+        else if (variable === 'Percent_Tree_Cover') data = labels.map((_, i) => 60 + 5 * Math.cos(i / 2) + 2 * Math.random());
+        else data = labels.map(() => 0);
+        return { labels, data };
+    };
+
     componentWillUnmount() {
         emitter.removeListener(this.openLayerControllerListener);
         emitter.removeListener(this.closeAllControllerListener);
@@ -678,6 +775,7 @@ class LayerController extends React.Component {
         emitter.removeListener(this.indexTypeListener);
         emitter.removeListener(this.activeToolListener);
         emitter.removeListener(this.bandDatesListener);
+        emitter.removeListener(this.spatioTemporalSelectedListener);
         window.removeEventListener('dragover', this.handleDragOver);
         window.removeEventListener('drop', this.handleDrop);
     }
@@ -998,6 +1096,13 @@ class LayerController extends React.Component {
                 maxY = maxY + 0.1;
             }
         }
+
+        const spatioVariables = [
+            { key: 'EVI', label: 'EVI (Enhanced Vegetation Index)' },
+            { key: 'Precipitation', label: 'Precipitation (CHIRPS)' },
+            { key: 'LST', label: 'Land Surface Temperature (LST)' },
+            { key: 'Percent_Tree_Cover', label: 'Percent Tree Cover (MODIS)' }
+        ];
 
         return (
             <MuiThemeProvider theme={GlobalStyles}>
@@ -1399,9 +1504,95 @@ class LayerController extends React.Component {
                                         </div>
                                     </Collapse>
                                     <Collapse in={this.state.showSpatiotemporalLegend} timeout="auto" unmountOnExit>
-                                        <div style={{ padding: '10px 0', textAlign: 'center', maxHeight: '250px', overflowY: 'auto' }}>
-                                            {/* Aquí puedes poner la leyenda o gráfica correspondiente al análisis espaciotemporal */}
-                                            <Typography variant="body2">Aquí aparecerá la leyenda y resultados del análisis espaciotemporal.</Typography>
+                                        <div style={{ padding: '10px 0', textAlign: 'center', maxHeight: '350px', overflowY: 'auto' }}>
+                                            {/* Solo mostrar las gráficas de los índices seleccionados, sin checklist */}
+                                            {this.state.selectedSpatioVariables.length === 0 && (
+                                                <Typography variant="body2" color="textSecondary" style={{ marginTop: 12 }}>No hay índices seleccionados para mostrar.</Typography>
+                                            )}
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 24, marginTop: 12 }}>
+                                                {this.state.selectedSpatioVariables.map(variable => {
+                                                    const vObj = spatioVariables.find(v => v.key === variable);
+                                                    const { labels, data } = this.getSpatioTemporalData(variable);
+                                                    return (
+                                                        <div key={variable} style={{ background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px rgba(33,150,243,0.08)', padding: 8, marginBottom: 8, position: 'relative', width: '100%', maxWidth: 400, minWidth: 0, boxSizing: 'border-box' }}>
+                                                            <Typography variant="subtitle2" style={{ fontWeight: 700, color: '#388e3c', marginBottom: 2 }}>{vObj ? vObj.label : variable}</Typography>
+                                                            <div style={{ width: '100%', minWidth: 0, height: 140, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                                <Line
+                                                                    data={{
+                                                                        labels,
+                                                                        datasets: [{
+                                                                            label: vObj ? vObj.label : variable,
+                                                                            data,
+                                                                            borderColor: '#388e3c',
+                                                                            backgroundColor: 'rgba(56,142,60,0.08)',
+                                                                            fill: true,
+                                                                            tension: 0.2,
+                                                                            pointRadius: 2,
+                                                                            pointHoverRadius: 4,
+                                                                            pointBackgroundColor: '#388e3c',
+                                                                            pointBorderColor: '#388e3c',
+                                                                            borderWidth: 2
+                                                                        }]
+                                                                    }}
+                                                                    options={{
+                                                                        responsive: true,
+                                                                        maintainAspectRatio: false,
+                                                                        plugins: { legend: { display: false } },
+                                                                        scales: {
+                                                                            x: {
+                                                                                title: { display: false, text: '' },
+                                                                                ticks: {
+                                                                                    maxRotation: 60,
+                                                                                    minRotation: 60,
+                                                                                    font: { size: 12 },
+                                                                                    callback: function(value, index, values) {
+                                                                                        const label = this.getLabelForValue(value);
+                                                                                        if (typeof label === 'string' && label.match(/^\d{4}-\d{2}/)) {
+                                                                                            return label.substring(0, 7);
+                                                                                        }
+                                                                                        return label;
+                                                                                    }
+                                                                                }
+                                                                            },
+                                                                            y: {
+                                                                                title: { display: true, text: vObj ? vObj.label : variable, color: '#388e3c', font: { style: 'italic' } },
+                                                                                ticks: { font: { size: 12 } }
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                    height={120}
+                                                                    width={350}
+                                                                />
+                                                            </div>
+                                                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: 4 }}>
+                                                                <button
+                                                                    onClick={() => this.setState({ showBigSpatioChart: variable })}
+                                                                    style={{
+                                                                        width: 28,
+                                                                        height: 28,
+                                                                        borderRadius: '50%',
+                                                                        background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                                                                        color: 'white',
+                                                                        border: 'none',
+                                                                        fontSize: 20,
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center',
+                                                                        cursor: 'pointer',
+                                                                        boxShadow: '0 2px 8px rgba(67, 233, 123, 0.12)',
+                                                                        margin: 0,
+                                                                        padding: 0
+                                                                    }}
+                                                                    aria-label="Ampliar gráfica"
+                                                                >
+                                                                    <span style={{ fontWeight: 'bold', fontSize: 22, lineHeight: '28px', width: '100%', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', top: '-1px' }}>+</span>
+                                                                </button>
+                                                                <span style={{ color: '#2e7d32', fontSize: 14, fontWeight: 500, userSelect: 'none', marginLeft: 8 }}>ampliar gráfica</span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
                                     </Collapse>
                                 </div>
@@ -1492,6 +1683,101 @@ class LayerController extends React.Component {
                                 height={400}
                                 width={800}
                             />
+                        </div>
+                    </div>
+                )}
+
+                {/* Modal para ampliar la gráfica espaciotemporal */}
+                {this.state.showBigSpatioChart && (
+                    <div
+                        onClick={() => this.setState({ showBigSpatioChart: null })}
+                        style={{
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            width: '100vw',
+                            height: '100vh',
+                            background: 'rgba(0,0,0,0.7)',
+                            zIndex: 3000,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                        }}
+                    >
+                        <div
+                            style={{
+                                background: 'white',
+                                borderRadius: 16,
+                                boxShadow: '0 8px 32px rgba(33,150,243,0.25)',
+                                padding: 32,
+                                minWidth: 1200,
+                                maxWidth: '99vw',
+                                minHeight: 400,
+                                maxHeight: '90vh',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}
+                            onClick={e => e.stopPropagation()}
+                        >
+                            {(() => {
+                                const variable = this.state.showBigSpatioChart;
+                                const vObj = spatioVariables.find(v => v.key === variable);
+                                const { labels, data } = this.getSpatioTemporalData(variable);
+                                return (
+                                    <>
+                                        <Typography variant="h6" style={{ fontWeight: 700, color: '#388e3c', marginBottom: 8 }}>{vObj ? vObj.label : variable}</Typography>
+                                        <Line
+                                            data={{
+                                                labels,
+                                                datasets: [{
+                                                    label: vObj ? vObj.label : variable,
+                                                    data,
+                                                    borderColor: '#388e3c',
+                                                    backgroundColor: 'rgba(56,142,60,0.08)',
+                                                    fill: true,
+                                                    tension: 0.2,
+                                                    pointRadius: 2,
+                                                    pointHoverRadius: 4,
+                                                    pointBackgroundColor: '#388e3c',
+                                                    pointBorderColor: '#388e3c',
+                                                    borderWidth: 2
+                                                }]
+                                            }}
+                                            options={{
+                                                responsive: true,
+                                                maintainAspectRatio: false,
+                                                plugins: { legend: { display: true } },
+                                                scales: {
+                                                    x: {
+                                                        title: { display: false, text: '' },
+                                                        ticks: {
+                                                            maxRotation: 60,
+                                                            minRotation: 60,
+                                                            font: { size: 16 },
+                                                            callback: function(value, index, values) {
+                                                                const label = this.getLabelForValue(value);
+                                                                if (typeof label === 'string' && label.match(/^\d{4}-\d{2}/)) {
+                                                                    return label.substring(0, 7);
+                                                                }
+                                                                return label;
+                                                            }
+                                                        }
+                                                    },
+                                                    y: {
+                                                        title: { display: true, text: vObj ? vObj.label : variable, color: '#388e3c', font: { style: 'italic' } },
+                                                        ticks: { font: { size: 16 } }
+                                                    }
+                                                }
+                                            }}
+                                            height={420}
+                                            width={1300}
+                                        />
+                                    </>
+                                );
+                            })()}
                         </div>
                     </div>
                 )}

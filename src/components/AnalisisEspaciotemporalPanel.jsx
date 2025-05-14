@@ -37,11 +37,49 @@ export default function AnalisisEspaciotemporalPanel() {
 
   if (!results) return null;
 
+  // Helper para renderizar una tabla de datos
+  const renderTable = (data, variableName) => {
+    if (!Array.isArray(data) || data.length === 0) return <Typography color="textSecondary">No hay datos para {variableName || 'la variable'}.</Typography>;
+    const columns = Object.keys(data[0]);
+    return (
+      <Box sx={{ mb: 3 }}>
+        {variableName && <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>{variableName}</Typography>}
+        <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 2, boxShadow: 1 }}>
+          <Box component="thead" sx={{ background: '#f0f0f0' }}>
+            <Box component="tr">
+              {columns.map(col => (
+                <Box component="th" key={col} sx={{ p: 1, border: '1px solid #e0e0e0', fontWeight: 700, fontSize: 14 }}>{col}</Box>
+              ))}
+            </Box>
+          </Box>
+          <Box component="tbody">
+            {data.map((row, i) => (
+              <Box component="tr" key={i}>
+                {columns.map(col => (
+                  <Box component="td" key={col} sx={{ p: 1, border: '1px solid #e0e0e0', fontSize: 13 }}>{row[col]}</Box>
+                ))}
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      </Box>
+    );
+  };
+
+  // Si results es un objeto con variables, mostrar una tabla por variable
+  let content = null;
+  if (Array.isArray(results)) {
+    content = renderTable(results);
+  } else if (results && typeof results === 'object') {
+    content = Object.entries(results).map(([variable, data]) => renderTable(data, variable));
+  } else {
+    content = <Typography color="textSecondary">No hay datos para mostrar.</Typography>;
+  }
+
   return (
     <Box sx={{ p: 2, background: '#f5f5f5', borderRadius: 2, boxShadow: 1, mt: 2 }}>
       <Typography variant="h6" sx={{ mb: 1, fontWeight: 700 }}>Análisis Espaciotemporal</Typography>
-      {/* Aquí puedes renderizar tablas o gráficos con los resultados */}
-      <pre style={{ maxHeight: 300, overflow: 'auto', background: '#fff', padding: 8, borderRadius: 4 }}>{JSON.stringify(results, null, 2)}</pre>
+      {content}
     </Box>
   );
 }

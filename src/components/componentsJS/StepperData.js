@@ -46,6 +46,10 @@ export default function HorizontalLinearStepperData({ onSubmit }) {
     if (savedEndDate) setEndDate(savedEndDate);
   }, []);
 
+  useEffect(() => {
+    emitter.emit('setSpatioTemporalSelected', selectedIndexes);
+  }, [selectedIndexes]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === 'startDate') {
@@ -76,6 +80,8 @@ export default function HorizontalLinearStepperData({ onSubmit }) {
 
   const handleNext = async () => {
     if (activeStep === 2) {
+      // Emit selected indices for legend update
+      emitter.emit('setSpatioTemporalSelected', selectedIndexes);
       setLoading(true);
       setError(null);
       emitter.emit('spatiotemporalAnalysisLoading');

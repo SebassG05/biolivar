@@ -296,6 +296,9 @@ class LayerController extends React.Component {
         spatioTemporalResults: {}, // Store real backend results per variable
         loadingSpatioTemporal: false, // Loading state for backend fetch
         spatioTemporalError: null, // Error state
+        lastActiveLayerId: null, // Última capa visible seleccionada
+        legendLayerIndex: 0, // Índice de la capa visible actualmente mostrada en la leyenda
+        legendViciLayerIndex: 0, // Índice de la capa VICI actualmente mostrada en la leyenda
     }
 
     handleCloseClick = () => {
@@ -336,18 +339,19 @@ class LayerController extends React.Component {
     }
 
     // Toggle visibility of a layer and emit event to canvas.jsx
-    // Manejar el cambio de visibilidad
     handleLayerVisibilityChange = (layerId) => {
         const updatedLayers = this.state.layers.map(layer =>
             layer.id === layerId ? { ...layer, visible: !layer.visible } : layer
         );
-        this.setState({ layers: updatedLayers });
-
-        // Emitimos un evento para cambiar la visibilidad de la capa en Canvas
+        const visibleLayers = updatedLayers.filter(l => l.visible);
+        // Si la capa activada/desactivada afecta al número de visibles, ajustar el índice
+        let legendLayerIndex = this.state.legendLayerIndex;
+        if (legendLayerIndex >= visibleLayers.length) legendLayerIndex = visibleLayers.length - 1;
+        if (legendLayerIndex < 0) legendLayerIndex = 0;
+        this.setState({ layers: updatedLayers, legendLayerIndex });
         emitter.emit('toggleLayerVisibility', layerId, updatedLayers.find(layer => layer.id === layerId).visible);
     };
 
-    // Manejar el cambio de transparencia
     handleTransparencyChange = (layerId, value) => {
         const updatedLayers = this.state.layers.map(layer =>
             layer.id === layerId ? { ...layer, transparency: value } : layer
@@ -358,6 +362,33 @@ class LayerController extends React.Component {
         emitter.emit('changeLayerTransparency', layerId, value / 100);  // Normalizamos de 0 a 1
     };
 
+    handleLegendPrev = () => {
+        const visibleLayers = this.state.layers.filter(l => l.visible);
+        this.setState(prev => ({
+            legendLayerIndex: prev.legendLayerIndex === 0 ? visibleLayers.length - 1 : prev.legendLayerIndex - 1
+        }));
+    }
+
+    handleLegendNext = () => {
+        const visibleLayers = this.state.layers.filter(l => l.visible);
+        this.setState(prev => ({
+            legendLayerIndex: prev.legendLayerIndex === visibleLayers.length - 1 ? 0 : prev.legendLayerIndex + 1
+        }));
+    }
+
+    handleLegendPrevVICI = () => {
+        const viciLayers = this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('VICI'));
+        this.setState(prev => ({
+            legendViciLayerIndex: prev.legendViciLayerIndex === 0 ? viciLayers.length - 1 : prev.legendViciLayerIndex - 1
+        }));
+    }
+
+    handleLegendNextVICI = () => {
+        const viciLayers = this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('VICI'));
+        this.setState(prev => ({
+            legendViciLayerIndex: prev.legendViciLayerIndex === viciLayers.length - 1 ? 0 : prev.legendViciLayerIndex + 1
+        }));
+    }
 
     // Función para cortar el nombre del asset después del "/0" o devolver el nombre si no lo tiene
     splitAssetName = (assetPath) => {
@@ -463,21 +494,35 @@ class LayerController extends React.Component {
         if (this.props.map !== prevProps.map) {
             this.updateDatasets();
         }
-        // Detectar si el dataset activo es temporal (array de objetos con Date y Value)
-        const visibleLayer = this.state.layers.find(layer => layer.visible);
-        if (visibleLayer && Array.isArray(visibleLayer.dataset) && visibleLayer.dataset.length > 0 && typeof visibleLayer.dataset[0] === 'object' && visibleLayer.dataset[0].Date && visibleLayer.dataset[0].Value) {
-            const dates = visibleLayer.dataset.map(item => item.Date);
-            const values = visibleLayer.dataset.map(item => item.Value);
-            // Solo actualiza si cambió
-            if (!this.state.dates || JSON.stringify(this.state.dates) !== JSON.stringify(dates)) {
-                this.setState({ dates, temporalValues: values });
-            }
-        }
-        // --- NUEVO: Si hay dos o más capas visibles, ambas funcionalidades activas ---
+        // --- NUEVO: Unificar comportamiento de paneles según tipo de capas visibles ---
         const visibleLayers = Array.isArray(this.state.layers) ? this.state.layers.filter(layer => layer.visible) : [];
         if (visibleLayers.length > 1) {
-            if (this.state.activeTool !== 'both') {
-                this.setState({ activeTool: 'both' });
+            // Determinar tipos de capas
+            const allVICI = visibleLayers.every(l => l.id.toUpperCase().includes('VICI'));
+            const allSPATIOTEMPORAL = visibleLayers.every(l => l.id.toUpperCase().includes('SPATIOTEMPORAL'));
+            const allSurface = visibleLayers.every(l => !l.id.toUpperCase().includes('VICI') && !l.id.toUpperCase().includes('SPATIOTEMPORAL'));
+            let newTool = 'surfaceAnalysis';
+            if (allVICI) newTool = 'vegChange';
+            else if (allSPATIOTEMPORAL) newTool = 'spatiotemporal';
+            else if (allSurface) newTool = 'surfaceAnalysis';
+            else newTool = 'surfaceAnalysis'; // Si hay mezcla, solo superficie activa
+
+            if (this.state.activeTool !== newTool) {
+                this.setState({ activeTool: newTool });
+            }
+            // Paneles activos/bloqueados según el tipo
+            if (newTool === 'vegChange') {
+                if (!this.state.showVegetationLegend) this.setState({ showVegetationLegend: true });
+                if (this.state.showSurfaceAnalysisLegend) this.setState({ showSurfaceAnalysisLegend: false });
+                if (this.state.showSpatiotemporalLegend) this.setState({ showSpatiotemporalLegend: false });
+            } else if (newTool === 'spatiotemporal') {
+                if (!this.state.showSpatiotemporalLegend) this.setState({ showSpatiotemporalLegend: true });
+                if (this.state.showVegetationLegend) this.setState({ showVegetationLegend: false });
+                if (this.state.showSurfaceAnalysisLegend) this.setState({ showSurfaceAnalysisLegend: false });
+            } else {
+                if (!this.state.showSurfaceAnalysisLegend) this.setState({ showSurfaceAnalysisLegend: true });
+                if (this.state.showVegetationLegend) this.setState({ showVegetationLegend: false });
+                if (this.state.showSpatiotemporalLegend) this.setState({ showSpatiotemporalLegend: false });
             }
         } else if (visibleLayers.length === 1) {
             const id = visibleLayers[0].id.toUpperCase();
@@ -485,11 +530,15 @@ class LayerController extends React.Component {
             // Si la capa es resultado de Vegetation Changes (id contiene 'VICI'), mostrar leyenda de cambios de vegetación
             if (id.includes('VICI')) {
                 newTool = 'vegChange';
+                if (!this.state.showVegetationLegend) this.setState({ showVegetationLegend: true });
+                if (this.state.showSurfaceAnalysisLegend) this.setState({ showSurfaceAnalysisLegend: false });
             } else if (id.includes('SPATIOTEMPORAL')) {
                 newTool = 'spatiotemporal';
             } else {
                 // Para cualquier otro caso (cálculo de variables), mostrar leyenda de análisis de la superficie
                 newTool = 'surfaceAnalysis';
+                if (!this.state.showSurfaceAnalysisLegend) this.setState({ showSurfaceAnalysisLegend: true });
+                if (this.state.showVegetationLegend) this.setState({ showVegetationLegend: false });
             }
             if (newTool && this.state.activeTool !== newTool) {
                 this.setState({ activeTool: newTool });
@@ -507,7 +556,6 @@ class LayerController extends React.Component {
                 this.setState({ showSpatiotemporalLegend: false });
             }
         }
-
         // Fetch real spatiotemporal data when selectedSpatioVariables changes
         if (
             this.state.activeTool === 'spatiotemporal' &&
@@ -819,9 +867,20 @@ class LayerController extends React.Component {
     };
 
     render() {
-        // Siempre obtener la primera capa visible en el orden actual
         const visibleLayers = Array.isArray(this.state.layers) ? this.state.layers.filter(layer => layer.visible) : [];
-        const topVisibleLayer = visibleLayers.length > 0 ? visibleLayers[0] : null;
+        const legendLayerIndex = Math.min(this.state.legendLayerIndex, visibleLayers.length - 1);
+        const topVisibleLayer = visibleLayers.length > 0 ? visibleLayers[legendLayerIndex] : null;
+        // Determinar si el panel de Cambios en la vegetación debe estar bloqueado
+        // Debe estar bloqueado SIEMPRE salvo cuando la única capa visible es de tipo 'VICI'
+        const blockVegChangePanel = false; // Eliminado el bloqueo visual
+        const vegBlockStyle = blockVegChangePanel
+            ? {
+                background: '#f0f0f0', // Unificar con el panel de análisis espaciotemporal
+                color: '#aaa',
+                opacity: 0.4,
+                cursor: 'not-allowed'
+            }
+            : {};
         // Si no hay ninguna capa visible, forzar a cerrar los paneles y no mostrar leyenda
         if (visibleLayers.length === 0) {
             if (this.state.showVegetationLegend) this.setState({ showVegetationLegend: false });
@@ -1104,6 +1163,8 @@ class LayerController extends React.Component {
             { key: 'Percent_Tree_Cover', label: 'Percent Tree Cover (MODIS)' }
         ];
 
+        const showSurfaceAnalysis = this.state.activeTool === 'surfaceAnalysis' || this.state.activeTool === 'both';
+
         return (
             <MuiThemeProvider theme={GlobalStyles}>
                 <Slide direction="left" in={this.state.open}>
@@ -1230,19 +1291,18 @@ class LayerController extends React.Component {
                                             display: 'flex',
                                             justifyContent: 'space-between',
                                             alignItems: 'center',
-                                            cursor: (activeTool === 'vegChange' || activeTool === 'both') && !isSpatiotemporal ? 'pointer' : 'not-allowed',
                                             padding: '10px 0',
                                             borderBottom: '1px solid #eee',
-                                            opacity: (activeTool === 'surfaceAnalysis' && activeTool !== 'both') || isSpatiotemporal ? 0.4 : 1
                                         }}
+                                        onClick={this.toggleVegetationLegend}
                                     >
                                         <div style={{ display: 'flex', alignItems: 'center' }}>
                                             <Typography variant="body2"><strong><b>Cambios en la vegetación</b></strong></Typography>
-                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.setState({ infoOpen: !this.state.infoOpen }); }} style={{ marginLeft: 6 }} disabled={((activeTool === 'surfaceAnalysis' && activeTool !== 'both') || isSpatiotemporal)}>
-                                                <Icon style={{ fontSize: 18, color: '#1976d2' }}>info</Icon>
+                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.setState({ infoOpen: !this.state.infoOpen }); }} style={{ marginLeft: 6, color: '#1976d2' }}>
+                                                <Icon style={{ fontSize: 18 }}>info</Icon>
                                             </IconButton>
                                         </div>
-                                        <Icon onClick={e => { if ((activeTool === 'vegChange' || activeTool === 'both') && !isSpatiotemporal) { e.stopPropagation(); this.toggleVegetationLegend(); } }}>{this.state.showVegetationLegend ? 'expand_less' : 'expand_more'}</Icon>
+                                        <Icon>{this.state.showVegetationLegend ? 'expand_less' : 'expand_more'}</Icon>
                                     </div>
                                     {/* Info collapsible */}
                                     <Collapse in={this.state.infoOpen} timeout="auto" unmountOnExit>
@@ -1256,31 +1316,41 @@ class LayerController extends React.Component {
                                     </Collapse>
                                     <Collapse in={this.state.showVegetationLegend} timeout="auto" unmountOnExit>
                                         <div style={{ padding: '10px 0', textAlign: 'center' }}>
-                                            <Typography>Tasa de cambio del índice</Typography>
-                                            <div style={{
-                                                width: '100%',
-                                                height: '20px',
-                                                background: 'linear-gradient(to right, red, white, green)',
-                                                margin: '10px 0',
-                                                borderRadius: '5px'
-                                            }}></div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                <Typography variant="body2">{minText}</Typography>
-                                                <Typography variant="body2">{maxText}</Typography>
-                                            </div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                <Typography variant="body2">Disminución</Typography>
-                                                <Typography variant="body2">Aumento</Typography>
-                                            </div>
-                                            {/* Mostrar fechas guardadas */}
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                                                <Typography variant="body2">
-                                                    {localStorage.getItem('startDate') ? `Inicio: ${localStorage.getItem('startDate')}` : 'Inicio: N/A'}
-                                                </Typography>
-                                                <Typography variant="body2">
-                                                    {localStorage.getItem('endDate') ? `Fin: ${localStorage.getItem('endDate')}` : 'Fin: N/A'}
-                                                </Typography>
-                                            </div>
+                                            {(() => {
+                                                // Mostrar la leyenda de la capa VICI seleccionada (si hay varias, mostrar la primera o la seleccionada por defecto)
+                                                const viciLayers = this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('VICI'));
+                                                const idx = this.state.legendViciLayerIndex || 0;
+                                                const viciLayer = viciLayers[idx] || viciLayers[0];
+                                                // ...aquí va el contenido de la leyenda, usando viciLayer...
+                                                return (
+                                                    <>
+                                                        <Typography>Tasa de cambio del índice</Typography>
+                                                        <div style={{
+                                                            width: '100%',
+                                                            height: '20px',
+                                                            background: 'linear-gradient(to right, red, white, green)',
+                                                            margin: '10px 0',
+                                                            borderRadius: '5px'
+                                                        }}></div>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                            <Typography variant="body2">{minText}</Typography>
+                                                            <Typography variant="body2">{maxText}</Typography>
+                                                        </div>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                            <Typography variant="body2">Disminución</Typography>
+                                                            <Typography variant="body2">Aumento</Typography>
+                                                        </div>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                                            <Typography variant="body2">
+                                                                {viciLayer && viciLayer.startDate ? `Inicio: ${viciLayer.startDate}` : (localStorage.getItem('startDate') ? `Inicio: ${localStorage.getItem('startDate')}` : 'Inicio: N/A')}
+                                                            </Typography>
+                                                            <Typography variant="body2">
+                                                                {viciLayer && viciLayer.endDate ? `Fin: ${viciLayer.endDate}` : (localStorage.getItem('endDate') ? `Fin: ${localStorage.getItem('endDate')}` : 'Fin: N/A')}
+                                                            </Typography>
+                                                        </div>
+                                                    </>
+                                                );
+                                            })()}
                                         </div>
                                     </Collapse>
 
@@ -1314,8 +1384,35 @@ class LayerController extends React.Component {
                                     </Collapse>
                                     <Collapse in={this.state.showSurfaceAnalysisLegend} timeout="auto" unmountOnExit>
                                         <div style={{ padding: '10px 0', textAlign: 'center', maxHeight: '250px', overflowY: 'auto' }}>
-                                            {indexLegends[this.state.selectedIndexType] || <Typography variant="body2">Selecciona un índice para ver la leyenda.</Typography>}
-                                            {/* Botón + simple, pequeño y texto 'ampliar gráfica', centrados debajo de la gráfica */}
+                                            {showSurfaceAnalysis && (
+                                                <div style={{ width: '100%' }}>
+                                                    {visibleLayers.length > 1 && (
+                                                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 8 }}>
+                                                            <button onClick={this.handleLegendPrev} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer' }}>{'<'}</button>
+                                                            <span style={{ margin: '0 8px', fontWeight: 'bold' }}>
+                                                                {topVisibleLayer ? (
+                                                                    (() => {
+                                                                        const start = topVisibleLayer.startDate || (topVisibleLayer.dataset && topVisibleLayer.dataset.length > 0 && topVisibleLayer.dataset[0].Date);
+                                                                        const end = topVisibleLayer.endDate || (topVisibleLayer.dataset && topVisibleLayer.dataset.length > 0 && topVisibleLayer.dataset[topVisibleLayer.dataset.length - 1].Date);
+                                                                        if (start && end) {
+                                                                            return `${start} - ${end}`;
+                                                                        }
+                                                                        return '';
+                                                                    })()
+                                                                ) : ''}
+                                                            </span>
+                                                            <button onClick={this.handleLegendNext} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer' }}>{'>'}</button>
+                                                        </div>
+                                                    )}
+                                                    {topVisibleLayer && (
+                                                        <div>
+                                                            {indexLegends[
+                                                                (['NDVI','EVI','GNDVI','NDMI','MSI','BI','SAVI'].find(idx => topVisibleLayer.id && topVisibleLayer.id.toUpperCase().includes(idx))) || 'NDVI'
+                                                            ]}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                             {dataset && dataset.length > 0 && (
                                                 <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                                                     <button
@@ -1378,9 +1475,7 @@ class LayerController extends React.Component {
                                                             <Typography variant="subtitle2" style={{ fontWeight: 600, color: '#43a047', marginTop: 8, marginLeft: 25 }}>
                                                                 Valor del índice
                                                             </Typography>
-                                                            {/* Separador visual entre las dos gráficas */}
                                                             <div style={{ marginTop: 24 }} />
-                                                            {/* Gráfica de línea NDVI temporal */}
                                                             {dataset && dataset.length > 0 && (
                                                                 <div style={{ width: '100%', height: 200, padding: '0 8px', position: 'relative' }}>
                                                                     <Line
@@ -1412,7 +1507,6 @@ class LayerController extends React.Component {
                                                                                         minRotation: 60,
                                                                                         font: { size: 12 },
                                                                                         callback: function(value, index, values) {
-                                                                                            // Si el label es una fecha tipo '2023-01-01', mostrar solo '2023-01'
                                                                                             const label = this.getLabelForValue(value);
                                                                                             if (typeof label === 'string' && label.match(/^\d{4}-\d{2}/)) {
                                                                                                 return label.substring(0, 7);
@@ -1429,7 +1523,6 @@ class LayerController extends React.Component {
                                                                             }
                                                                         }}
                                                                     />
-                                                                    {/* Botón + simple, pequeño y texto 'ampliar gráfica', centrados debajo de la gráfica */}
                                                                     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: 16 }}>
                                                                         <button
                                                                             onClick={() => this.setState({ showBigSurfaceChart: true })}
@@ -1475,7 +1568,6 @@ class LayerController extends React.Component {
                                         </div>
                                     </Collapse>
 
-                                    {/* Nuevo subdesplegable: Análisis espaciotemporal */}
                                     <div
                                         style={{
                                             display: 'flex',
@@ -1505,7 +1597,6 @@ class LayerController extends React.Component {
                                     </Collapse>
                                     <Collapse in={this.state.showSpatiotemporalLegend} timeout="auto" unmountOnExit>
                                         <div style={{ padding: '10px 0', textAlign: 'center', maxHeight: '350px', overflowY: 'auto' }}>
-                                            {/* Solo mostrar las gráficas de los índices seleccionados, sin checklist */}
                                             {this.state.selectedSpatioVariables.length === 0 && (
                                                 <Typography variant="body2" color="textSecondary" style={{ marginTop: 12 }}>No hay índices seleccionados para mostrar.</Typography>
                                             )}
@@ -1601,7 +1692,6 @@ class LayerController extends React.Component {
                     </fieldset>
                 )}
 
-                {/* Modal para ampliar la gráfica de superficie */}
                 {this.state.showBigSurfaceChart && (
                     <div
                         onClick={() => this.setState({ showBigSurfaceChart: false })}
@@ -1687,7 +1777,6 @@ class LayerController extends React.Component {
                     </div>
                 )}
 
-                {/* Modal para ampliar la gráfica espaciotemporal */}
                 {this.state.showBigSpatioChart && (
                     <div
                         onClick={() => this.setState({ showBigSpatioChart: null })}

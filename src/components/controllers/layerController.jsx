@@ -494,68 +494,6 @@ class LayerController extends React.Component {
         if (this.props.map !== prevProps.map) {
             this.updateDatasets();
         }
-        // --- NUEVO: Unificar comportamiento de paneles según tipo de capas visibles ---
-        const visibleLayers = Array.isArray(this.state.layers) ? this.state.layers.filter(layer => layer.visible) : [];
-        if (visibleLayers.length > 1) {
-            // Determinar tipos de capas
-            const allVICI = visibleLayers.every(l => l.id.toUpperCase().includes('VICI'));
-            const allSPATIOTEMPORAL = visibleLayers.every(l => l.id.toUpperCase().includes('SPATIOTEMPORAL'));
-            const allSurface = visibleLayers.every(l => !l.id.toUpperCase().includes('VICI') && !l.id.toUpperCase().includes('SPATIOTEMPORAL'));
-            let newTool = 'surfaceAnalysis';
-            if (allVICI) newTool = 'vegChange';
-            else if (allSPATIOTEMPORAL) newTool = 'spatiotemporal';
-            else if (allSurface) newTool = 'surfaceAnalysis';
-            else newTool = 'surfaceAnalysis'; // Si hay mezcla, solo superficie activa
-
-            if (this.state.activeTool !== newTool) {
-                this.setState({ activeTool: newTool });
-            }
-            // Paneles activos/bloqueados según el tipo
-            if (newTool === 'vegChange') {
-                if (!this.state.showVegetationLegend) this.setState({ showVegetationLegend: true });
-                if (this.state.showSurfaceAnalysisLegend) this.setState({ showSurfaceAnalysisLegend: false });
-                if (this.state.showSpatiotemporalLegend) this.setState({ showSpatiotemporalLegend: false });
-            } else if (newTool === 'spatiotemporal') {
-                if (!this.state.showSpatiotemporalLegend) this.setState({ showSpatiotemporalLegend: true });
-                if (this.state.showVegetationLegend) this.setState({ showVegetationLegend: false });
-                if (this.state.showSurfaceAnalysisLegend) this.setState({ showSurfaceAnalysisLegend: false });
-            } else {
-                if (!this.state.showSurfaceAnalysisLegend) this.setState({ showSurfaceAnalysisLegend: true });
-                if (this.state.showVegetationLegend) this.setState({ showVegetationLegend: false });
-                if (this.state.showSpatiotemporalLegend) this.setState({ showSpatiotemporalLegend: false });
-            }
-        } else if (visibleLayers.length === 1) {
-            const id = visibleLayers[0].id.toUpperCase();
-            let newTool = null;
-            // Si la capa es resultado de Vegetation Changes (id contiene 'VICI'), mostrar leyenda de cambios de vegetación
-            if (id.includes('VICI')) {
-                newTool = 'vegChange';
-                if (!this.state.showVegetationLegend) this.setState({ showVegetationLegend: true });
-                if (this.state.showSurfaceAnalysisLegend) this.setState({ showSurfaceAnalysisLegend: false });
-            } else if (id.includes('SPATIOTEMPORAL')) {
-                newTool = 'spatiotemporal';
-            } else {
-                // Para cualquier otro caso (cálculo de variables), mostrar leyenda de análisis de la superficie
-                newTool = 'surfaceAnalysis';
-                if (!this.state.showSurfaceAnalysisLegend) this.setState({ showSurfaceAnalysisLegend: true });
-                if (this.state.showVegetationLegend) this.setState({ showVegetationLegend: false });
-            }
-            if (newTool && this.state.activeTool !== newTool) {
-                this.setState({ activeTool: newTool });
-            }
-        }
-        // Cerrar paneles bloqueados automáticamente solo si no están ambas activas
-        if (this.state.activeTool !== 'both') {
-            if (this.state.showVegetationLegend && this.state.activeTool !== 'vegChange') {
-                this.setState({ showVegetationLegend: false });
-            }
-            if (this.state.showSurfaceAnalysisLegend && this.state.activeTool !== 'surfaceAnalysis') {
-                this.setState({ showSurfaceAnalysisLegend: false });
-            }
-            if (this.state.showSpatiotemporalLegend && this.state.activeTool !== 'spatiotemporal') {
-                this.setState({ showSpatiotemporalLegend: false });
-            }
-        }
         // Fetch real spatiotemporal data when selectedSpatioVariables changes
         if (
             this.state.activeTool === 'spatiotemporal' &&
@@ -756,6 +694,13 @@ class LayerController extends React.Component {
         }
     }
 
+    defineSpatiotemporalOnly = () => {
+        const { layers } = this.state;
+        if (!Array.isArray(layers) || layers.length === 0) return false;
+        const visibles = layers.filter(l => l.visible);
+        if (visibles.length === 0) return false;
+        return visibles.every(l => l.id && l.id.toUpperCase().includes('SPATIO'));
+    };
 
     handleAssetChange = (event) => {
         const selectedAsset = event.target.value.id;  // Obtenemos el id del asset
@@ -866,10 +811,16 @@ class LayerController extends React.Component {
         this.setState((prev) => ({ showSurfaceInfo: !prev.showSurfaceInfo }));
     };
 
+    handleSpatiotemporalInfoClick = () => {
+        this.setState((prev) => ({ showSpatiotemporalInfo: !prev.showSpatiotemporalInfo }));
+    };
+
     render() {
         const visibleLayers = Array.isArray(this.state.layers) ? this.state.layers.filter(layer => layer.visible) : [];
         const legendLayerIndex = Math.min(this.state.legendLayerIndex, visibleLayers.length - 1);
         const topVisibleLayer = visibleLayers.length > 0 ? visibleLayers[legendLayerIndex] : null;
+        const isSpatiotemporalOnly = this.defineSpatiotemporalOnly();
+        const onlySpatiotemporal = Array.isArray(this.state.layers) && this.state.layers.length > 0 && this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('SPATIO')).length === this.state.layers.filter(l => l.visible).length;
         // Determinar si el panel de Cambios en la vegetación debe estar bloqueado
         // Debe estar bloqueado SIEMPRE salvo cuando la única capa visible es de tipo 'VICI'
         const blockVegChangePanel = false; // Eliminado el bloqueo visual
@@ -883,9 +834,6 @@ class LayerController extends React.Component {
             : {};
         // Si no hay ninguna capa visible, forzar a cerrar los paneles y no mostrar leyenda
         if (visibleLayers.length === 0) {
-            if (this.state.showVegetationLegend) this.setState({ showVegetationLegend: false });
-            if (this.state.showSurfaceAnalysisLegend) this.setState({ showSurfaceAnalysisLegend: false });
-            if (this.state.showSpatiotemporalLegend) this.setState({ showSpatiotemporalLegend: false });
             return (
                 <MuiThemeProvider theme={GlobalStyles}>
                     <Slide direction="left" in={this.state.open}>
@@ -1293,16 +1241,21 @@ class LayerController extends React.Component {
                                             alignItems: 'center',
                                             padding: '10px 0',
                                             borderBottom: '1px solid #eee',
+                                            background: Array.isArray(this.state.layers) && this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('VICI')).length === 0 ? '#f0f0f0' : undefined,
+                                            color: Array.isArray(this.state.layers) && this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('VICI')).length === 0 ? '#aaa' : undefined,
+                                            opacity: Array.isArray(this.state.layers) && this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('VICI')).length === 0 ? 0.4 : 1,
+                                            cursor: 'pointer',
                                         }}
-                                        onClick={this.toggleVegetationLegend}
                                     >
-                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', color: Array.isArray(this.state.layers) && this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('VICI')).length === 0 ? '#aaa' : undefined }}>
                                             <Typography variant="body2"><strong><b>Cambios en la vegetación</b></strong></Typography>
-                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.setState({ infoOpen: !this.state.infoOpen }); }} style={{ marginLeft: 6, color: '#1976d2' }}>
+                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.setState({ infoOpen: !this.state.infoOpen }); }} style={{ marginLeft: 6, color: Array.isArray(this.state.layers) && this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('VICI')).length === 0 ? '#aaa' : '#1976d2' }} disabled={Array.isArray(this.state.layers) && this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('VICI')).length === 0}>
                                                 <Icon style={{ fontSize: 18 }}>info</Icon>
                                             </IconButton>
                                         </div>
-                                        <Icon>{this.state.showVegetationLegend ? 'expand_less' : 'expand_more'}</Icon>
+                                        <Icon style={{ color: Array.isArray(this.state.layers) && this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('VICI')).length === 0 ? '#aaa' : undefined, cursor: 'pointer' }} onClick={e => { e.stopPropagation(); this.toggleVegetationLegend(); }}>
+                                            {this.state.showVegetationLegend ? 'expand_less' : 'expand_more'}
+                                        </Icon>
                                     </div>
                                     {/* Info collapsible */}
                                     <Collapse in={this.state.infoOpen} timeout="auto" unmountOnExit>
@@ -1315,13 +1268,30 @@ class LayerController extends React.Component {
                                         </div>
                                     </Collapse>
                                     <Collapse in={this.state.showVegetationLegend} timeout="auto" unmountOnExit>
-                                        <div style={{ padding: '10px 0', textAlign: 'center' }}>
+                                        <div style={{ padding: '10px 0', textAlign: 'center', position: 'relative' }}>
+                                            {Array.isArray(this.state.layers) && this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('VICI')).length === 0 && (
+                                                <div style={{
+                                                    width: '100%',
+                                                    height: 60,
+                                                    background: '#f0f0f0',
+                                                    color: '#aaa',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontWeight: 600,
+                                                    fontSize: 16,
+                                                    borderRadius: 8,
+                                                    marginBottom: 8
+                                                }}>
+                                                    Panel deshabilitado: activa una capa de cambios en la vegetación para ver la leyenda
+                                                </div>
+                                            )}
+                                            {/* ...leyenda o contenido habitual... */}
                                             {(() => {
-                                                // Mostrar la leyenda de la capa VICI seleccionada (si hay varias, mostrar la primera o la seleccionada por defecto)
                                                 const viciLayers = this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('VICI'));
+                                                if (viciLayers.length === 0) return null;
                                                 const idx = this.state.legendViciLayerIndex || 0;
                                                 const viciLayer = viciLayers[idx] || viciLayers[0];
-                                                // ...aquí va el contenido de la leyenda, usando viciLayer...
                                                 return (
                                                     <>
                                                         <Typography>Tasa de cambio del índice</Typography>
@@ -1360,21 +1330,25 @@ class LayerController extends React.Component {
                                             display: 'flex',
                                             justifyContent: 'space-between',
                                             alignItems: 'center',
-                                            cursor: (activeTool === 'surfaceAnalysis' || activeTool === 'both') && !isSpatiotemporal ? 'pointer' : 'not-allowed',
+                                            cursor: onlySpatiotemporal ? 'not-allowed' : 'pointer',
                                             padding: '10px 0',
                                             borderBottom: '1px solid #eee',
-                                            opacity: (activeTool === 'vegChange' && activeTool !== 'both') || isSpatiotemporal ? 0.4 : 1
+                                            opacity: onlySpatiotemporal ? 0.4 : 1,
+                                            background: onlySpatiotemporal ? '#f0f0f0' : undefined,
+                                            color: onlySpatiotemporal ? '#aaa' : undefined
                                         }}
                                     >
-                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', color: onlySpatiotemporal ? '#aaa' : undefined }}>
                                             <Typography variant="body2"><strong><b>Análisis de la superficie</b></strong></Typography>
-                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.handleSurfaceInfoClick(); }} style={{ marginLeft: 6 }} disabled={((activeTool === 'vegChange' && activeTool !== 'both') || isSpatiotemporal)}>
-                                                <Icon style={{ fontSize: 18, color: '#1976d2' }}>info</Icon>
+                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.handleSurfaceInfoClick(); }} style={{ marginLeft: 6, color: onlySpatiotemporal ? '#aaa' : '#1976d2' }} disabled={onlySpatiotemporal}>
+                                                <Icon style={{ fontSize: 18 }}>info</Icon>
                                             </IconButton>
                                         </div>
-                                        <Icon onClick={e => { if ((activeTool === 'surfaceAnalysis' || activeTool === 'both') && !isSpatiotemporal) { e.stopPropagation(); this.toggleSurfaceAnalysisLegend(); } }}>{this.state.showSurfaceAnalysisLegend ? 'expand_less' : 'expand_more'}</Icon>
+                                        <Icon style={{ cursor: onlySpatiotemporal ? 'not-allowed' : 'pointer', color: onlySpatiotemporal ? '#aaa' : undefined }} onClick={e => { if (!onlySpatiotemporal) { e.stopPropagation(); this.toggleSurfaceAnalysisLegend(); } }}>
+                                            {this.state.showSurfaceAnalysisLegend ? 'expand_less' : 'expand_more'}
+                                        </Icon>
                                     </div>
-                                    <Collapse in={this.state.showSurfaceInfo} timeout="auto" unmountOnExit>
+                                    <Collapse in={this.state.showSurfaceInfo && !onlySpatiotemporal} timeout="auto" unmountOnExit>
                                         <div style={{ padding: '12px 16px', background: '#f9f9f9', borderRadius: 8, margin: '8px 0' }}>
                                             <Typography variant="subtitle2" gutterBottom><b>¿Para qué sirve esta funcionalidad con el índice seleccionado?</b></Typography>
                                             <Typography variant="body2" style={{ textAlign: 'justify' }}>
@@ -1382,7 +1356,7 @@ class LayerController extends React.Component {
                                             </Typography>
                                         </div>
                                     </Collapse>
-                                    <Collapse in={this.state.showSurfaceAnalysisLegend} timeout="auto" unmountOnExit>
+                                    <Collapse in={this.state.showSurfaceAnalysisLegend && !onlySpatiotemporal} timeout="auto" unmountOnExit>
                                         <div style={{ padding: '10px 0', textAlign: 'center', maxHeight: '250px', overflowY: 'auto' }}>
                                             {showSurfaceAnalysis && (
                                                 <div style={{ width: '100%' }}>
@@ -1573,19 +1547,23 @@ class LayerController extends React.Component {
                                             display: 'flex',
                                             justifyContent: 'space-between',
                                             alignItems: 'center',
-                                            cursor: isSpatiotemporal ? 'pointer' : 'not-allowed',
+                                            cursor: 'pointer', // SIEMPRE pointer
                                             padding: '10px 0',
                                             borderBottom: '1px solid #eee',
-                                            opacity: isSpatiotemporal ? 1 : 0.4
+                                            opacity: 1, // SIEMPRE activo
+                                            background: undefined, // SIN fondo gris
+                                            color: undefined // SIN color gris
                                         }}
                                     >
                                         <div style={{ display: 'flex', alignItems: 'center' }}>
                                             <Typography variant="body2"><strong><b>Análisis espaciotemporal</b></strong></Typography>
-                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.setState({ showSpatiotemporalInfo: !this.state.showSpatiotemporalInfo }); }} style={{ marginLeft: 6 }} disabled={!isSpatiotemporal}>
-                                                <Icon style={{ fontSize: 18, color: '#1976d2' }}>info</Icon>
+                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.handleSpatiotemporalInfoClick(); }} style={{ marginLeft: 6, color: '#1976d2' }}>
+                                                <Icon style={{ fontSize: 18 }}>info</Icon>
                                             </IconButton>
                                         </div>
-                                        <Icon onClick={e => { if (isSpatiotemporal) { e.stopPropagation(); this.toggleSpatiotemporalLegend(); } }}>{this.state.showSpatiotemporalLegend ? 'expand_less' : 'expand_more'}</Icon>
+                                        <Icon style={{ cursor: 'pointer' }} onClick={e => { e.stopPropagation(); this.toggleSpatiotemporalLegend(); }}>
+                                            {this.state.showSpatiotemporalLegend ? 'expand_less' : 'expand_more'}
+                                        </Icon>
                                     </div>
                                     <Collapse in={this.state.showSpatiotemporalInfo} timeout="auto" unmountOnExit>
                                         <div style={{ padding: '12px 16px', background: '#f9f9f9', borderRadius: 8, margin: '8px 0' }}>

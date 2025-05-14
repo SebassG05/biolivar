@@ -288,7 +288,9 @@ class LayerController extends React.Component {
         dates: null, // Fechas del dataset temporal
         temporalValues: null, // Valores del dataset temporal
         showBigSurfaceChart: false, // Estado para mostrar el modal con la gráfica ampliada
-        bandDates: null // Fechas seleccionadas por el usuario en BandController
+        bandDates: null, // Fechas seleccionadas por el usuario en BandController
+        showSpatiotemporalLegend: false,
+        showSpatiotemporalInfo: false,
     }
 
     handleCloseClick = () => {
@@ -473,6 +475,8 @@ class LayerController extends React.Component {
             // Si la capa es resultado de Vegetation Changes (id contiene 'VICI'), mostrar leyenda de cambios de vegetación
             if (id.includes('VICI')) {
                 newTool = 'vegChange';
+            } else if (id.includes('SPATIOTEMPORAL')) {
+                newTool = 'spatiotemporal';
             } else {
                 // Para cualquier otro caso (cálculo de variables), mostrar leyenda de análisis de la superficie
                 newTool = 'surfaceAnalysis';
@@ -488,6 +492,9 @@ class LayerController extends React.Component {
             }
             if (this.state.showSurfaceAnalysisLegend && this.state.activeTool !== 'surfaceAnalysis') {
                 this.setState({ showSurfaceAnalysisLegend: false });
+            }
+            if (this.state.showSpatiotemporalLegend && this.state.activeTool !== 'spatiotemporal') {
+                this.setState({ showSpatiotemporalLegend: false });
             }
         }
     }
@@ -703,6 +710,12 @@ class LayerController extends React.Component {
         }));
     };
 
+    toggleSpatiotemporalLegend = () => {
+        this.setState(prevState => ({
+            showSpatiotemporalLegend: !prevState.showSpatiotemporalLegend
+        }));
+    };
+
     handleSurfaceInfoClick = () => {
         this.setState((prev) => ({ showSurfaceInfo: !prev.showSurfaceInfo }));
     };
@@ -715,6 +728,7 @@ class LayerController extends React.Component {
         if (visibleLayers.length === 0) {
             if (this.state.showVegetationLegend) this.setState({ showVegetationLegend: false });
             if (this.state.showSurfaceAnalysisLegend) this.setState({ showSurfaceAnalysisLegend: false });
+            if (this.state.showSpatiotemporalLegend) this.setState({ showSpatiotemporalLegend: false });
             return (
                 <MuiThemeProvider theme={GlobalStyles}>
                     <Slide direction="left" in={this.state.open}>
@@ -960,6 +974,7 @@ class LayerController extends React.Component {
         };
 
         const { activeTool } = this.state;
+        const isSpatiotemporal = this.state.activeTool === 'spatiotemporal';
 
         // En el render, para la gráfica temporal:
         const fechasDataset = Array.isArray(dataset) && dataset.length > 0 && typeof dataset[0] === 'object' && dataset[0].Date
@@ -1110,19 +1125,19 @@ class LayerController extends React.Component {
                                             display: 'flex',
                                             justifyContent: 'space-between',
                                             alignItems: 'center',
-                                            cursor: (activeTool === 'vegChange' || activeTool === 'both') ? 'pointer' : 'not-allowed',
+                                            cursor: (activeTool === 'vegChange' || activeTool === 'both') && !isSpatiotemporal ? 'pointer' : 'not-allowed',
                                             padding: '10px 0',
                                             borderBottom: '1px solid #eee',
-                                            opacity: (activeTool === 'surfaceAnalysis' && activeTool !== 'both') ? 0.4 : 1
+                                            opacity: (activeTool === 'surfaceAnalysis' && activeTool !== 'both') || isSpatiotemporal ? 0.4 : 1
                                         }}
                                     >
                                         <div style={{ display: 'flex', alignItems: 'center' }}>
                                             <Typography variant="body2"><strong><b>Cambios en la vegetación</b></strong></Typography>
-                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.setState({ infoOpen: !this.state.infoOpen }); }} style={{ marginLeft: 6 }} disabled={activeTool === 'surfaceAnalysis' && activeTool !== 'both'}>
+                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.setState({ infoOpen: !this.state.infoOpen }); }} style={{ marginLeft: 6 }} disabled={((activeTool === 'surfaceAnalysis' && activeTool !== 'both') || isSpatiotemporal)}>
                                                 <Icon style={{ fontSize: 18, color: '#1976d2' }}>info</Icon>
                                             </IconButton>
                                         </div>
-                                        <Icon onClick={e => { if (activeTool === 'vegChange' || activeTool === 'both') { e.stopPropagation(); this.toggleVegetationLegend(); } }}>{this.state.showVegetationLegend ? 'expand_less' : 'expand_more'}</Icon>
+                                        <Icon onClick={e => { if ((activeTool === 'vegChange' || activeTool === 'both') && !isSpatiotemporal) { e.stopPropagation(); this.toggleVegetationLegend(); } }}>{this.state.showVegetationLegend ? 'expand_less' : 'expand_more'}</Icon>
                                     </div>
                                     {/* Info collapsible */}
                                     <Collapse in={this.state.infoOpen} timeout="auto" unmountOnExit>
@@ -1170,19 +1185,19 @@ class LayerController extends React.Component {
                                             display: 'flex',
                                             justifyContent: 'space-between',
                                             alignItems: 'center',
-                                            cursor: (activeTool === 'surfaceAnalysis' || activeTool === 'both') ? 'pointer' : 'not-allowed',
+                                            cursor: (activeTool === 'surfaceAnalysis' || activeTool === 'both') && !isSpatiotemporal ? 'pointer' : 'not-allowed',
                                             padding: '10px 0',
                                             borderBottom: '1px solid #eee',
-                                            opacity: (activeTool === 'vegChange' && activeTool !== 'both') ? 0.4 : 1
+                                            opacity: (activeTool === 'vegChange' && activeTool !== 'both') || isSpatiotemporal ? 0.4 : 1
                                         }}
                                     >
                                         <div style={{ display: 'flex', alignItems: 'center' }}>
                                             <Typography variant="body2"><strong><b>Análisis de la superficie</b></strong></Typography>
-                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.handleSurfaceInfoClick(); }} style={{ marginLeft: 6 }} disabled={activeTool === 'vegChange' && activeTool !== 'both'}>
+                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.handleSurfaceInfoClick(); }} style={{ marginLeft: 6 }} disabled={((activeTool === 'vegChange' && activeTool !== 'both') || isSpatiotemporal)}>
                                                 <Icon style={{ fontSize: 18, color: '#1976d2' }}>info</Icon>
                                             </IconButton>
                                         </div>
-                                        <Icon onClick={e => { if (activeTool === 'surfaceAnalysis' || activeTool === 'both') { e.stopPropagation(); this.toggleSurfaceAnalysisLegend(); } }}>{this.state.showSurfaceAnalysisLegend ? 'expand_less' : 'expand_more'}</Icon>
+                                        <Icon onClick={e => { if ((activeTool === 'surfaceAnalysis' || activeTool === 'both') && !isSpatiotemporal) { e.stopPropagation(); this.toggleSurfaceAnalysisLegend(); } }}>{this.state.showSurfaceAnalysisLegend ? 'expand_less' : 'expand_more'}</Icon>
                                     </div>
                                     <Collapse in={this.state.showSurfaceInfo} timeout="auto" unmountOnExit>
                                         <div style={{ padding: '12px 16px', background: '#f9f9f9', borderRadius: 8, margin: '8px 0' }}>
@@ -1352,6 +1367,41 @@ class LayerController extends React.Component {
                                                     </Collapse>
                                                 </div>
                                             )}
+                                        </div>
+                                    </Collapse>
+
+                                    {/* Nuevo subdesplegable: Análisis espaciotemporal */}
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            cursor: isSpatiotemporal ? 'pointer' : 'not-allowed',
+                                            padding: '10px 0',
+                                            borderBottom: '1px solid #eee',
+                                            opacity: isSpatiotemporal ? 1 : 0.4
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                            <Typography variant="body2"><strong><b>Análisis espaciotemporal</b></strong></Typography>
+                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.setState({ showSpatiotemporalInfo: !this.state.showSpatiotemporalInfo }); }} style={{ marginLeft: 6 }} disabled={!isSpatiotemporal}>
+                                                <Icon style={{ fontSize: 18, color: '#1976d2' }}>info</Icon>
+                                            </IconButton>
+                                        </div>
+                                        <Icon onClick={e => { if (isSpatiotemporal) { e.stopPropagation(); this.toggleSpatiotemporalLegend(); } }}>{this.state.showSpatiotemporalLegend ? 'expand_less' : 'expand_more'}</Icon>
+                                    </div>
+                                    <Collapse in={this.state.showSpatiotemporalInfo} timeout="auto" unmountOnExit>
+                                        <div style={{ padding: '12px 16px', background: '#f9f9f9', borderRadius: 8, margin: '8px 0' }}>
+                                            <Typography variant="subtitle2" gutterBottom><b>¿Para qué sirve el análisis espaciotemporal?</b></Typography>
+                                            <Typography variant="body2" style={{ textAlign: 'justify' }}>
+                                                Esta funcionalidad permite analizar la evolución temporal de variables ambientales (precipitación, temperatura, etc.) en el área seleccionada, mostrando tendencias y patrones a lo largo del tiempo.
+                                            </Typography>
+                                        </div>
+                                    </Collapse>
+                                    <Collapse in={this.state.showSpatiotemporalLegend} timeout="auto" unmountOnExit>
+                                        <div style={{ padding: '10px 0', textAlign: 'center', maxHeight: '250px', overflowY: 'auto' }}>
+                                            {/* Aquí puedes poner la leyenda o gráfica correspondiente al análisis espaciotemporal */}
+                                            <Typography variant="body2">Aquí aparecerá la leyenda y resultados del análisis espaciotemporal.</Typography>
                                         </div>
                                     </Collapse>
                                 </div>

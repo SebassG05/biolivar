@@ -827,6 +827,8 @@ class LayerController extends React.Component {
         // Determinar si el análisis espaciotemporal debe estar bloqueado
         const spatiotemporalActive = this.state.selectedSpatioVariables && this.state.selectedSpatioVariables.length > 0;
         const blockSpatiotemporal = !(this.state.selectedSpatioVariables && this.state.selectedSpatioVariables.length > 0);
+        // Determinar si el panel de Análisis de la superficie debe estar bloqueado
+        const blockSurfaceAnalysis = activeVariableLayers.length === 0;
         // Si no hay ninguna capa visible, forzar a cerrar los paneles y no mostrar leyenda
         if (visibleLayers.length === 0) {
             return (
@@ -1325,25 +1327,25 @@ class LayerController extends React.Component {
                                             display: 'flex',
                                             justifyContent: 'space-between',
                                             alignItems: 'center',
-                                            cursor: onlySpatiotemporal ? 'not-allowed' : 'pointer',
+                                            cursor: blockSurfaceAnalysis ? 'not-allowed' : 'pointer',
                                             padding: '10px 0',
                                             borderBottom: '1px solid #eee',
-                                            opacity: onlySpatiotemporal ? 0.4 : 1,
-                                            background: onlySpatiotemporal ? '#f0f0f0' : undefined,
-                                            color: onlySpatiotemporal ? '#aaa' : undefined
+                                            opacity: blockSurfaceAnalysis ? 0.4 : 1,
+                                            background: blockSurfaceAnalysis ? '#f0f0f0' : undefined,
+                                            color: blockSurfaceAnalysis ? '#aaa' : undefined
                                         }}
                                     >
-                                        <div style={{ display: 'flex', alignItems: 'center', color: onlySpatiotemporal ? '#aaa' : undefined }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', color: blockSurfaceAnalysis ? '#aaa' : undefined }}>
                                             <Typography variant="body2"><strong><b>Análisis de la superficie</b></strong></Typography>
-                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.handleSurfaceInfoClick(); }} style={{ marginLeft: 6, color: onlySpatiotemporal ? '#aaa' : '#1976d2' }} disabled={onlySpatiotemporal}>
+                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.handleSurfaceInfoClick(); }} style={{ marginLeft: 6, color: blockSurfaceAnalysis ? '#aaa' : '#1976d2' }} disabled={blockSurfaceAnalysis}>
                                                 <Icon style={{ fontSize: 18 }}>info</Icon>
                                             </IconButton>
                                         </div>
-                                        <Icon style={{ cursor: onlySpatiotemporal ? 'not-allowed' : 'pointer', color: onlySpatiotemporal ? '#aaa' : undefined }} onClick={e => { if (!onlySpatiotemporal) { e.stopPropagation(); this.toggleSurfaceAnalysisLegend(); } }}>
+                                        <Icon style={{ cursor: blockSurfaceAnalysis ? 'not-allowed' : 'pointer', color: blockSurfaceAnalysis ? '#aaa' : undefined }} onClick={e => { if (!blockSurfaceAnalysis) { e.stopPropagation(); this.toggleSurfaceAnalysisLegend(); } }}>
                                             {this.state.showSurfaceAnalysisLegend ? 'expand_less' : 'expand_more'}
                                         </Icon>
                                     </div>
-                                    <Collapse in={this.state.showSurfaceInfo && !onlySpatiotemporal} timeout="auto" unmountOnExit>
+                                    <Collapse in={this.state.showSurfaceInfo && !blockSurfaceAnalysis} timeout="auto" unmountOnExit>
                                         <div style={{ padding: '12px 16px', background: '#f9f9f9', borderRadius: 8, margin: '8px 0' }}>
                                             <Typography variant="subtitle2" gutterBottom><b>¿Para qué sirve esta funcionalidad con el índice seleccionado?</b></Typography>
                                             <Typography variant="body2" style={{ textAlign: 'justify' }}>
@@ -1351,7 +1353,7 @@ class LayerController extends React.Component {
                                             </Typography>
                                         </div>
                                     </Collapse>
-                                    <Collapse in={this.state.showSurfaceAnalysisLegend && !onlySpatiotemporal} timeout="auto" unmountOnExit>
+                                    <Collapse in={this.state.showSurfaceAnalysisLegend && !blockSurfaceAnalysis} timeout="auto" unmountOnExit>
                                         <div style={{ padding: '10px 0', textAlign: 'center', maxHeight: '250px', overflowY: 'auto' }}>
                                             {(activeVariableLayers.length > 0 && topVisibleLayer) && (
                                                 <div style={{ width: '100%' }}>

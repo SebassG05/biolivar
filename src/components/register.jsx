@@ -139,9 +139,12 @@ class Register extends React.Component {
             return;
         }
 
-        // Optional: Decode for immediate UI info (DO NOT TRUST FOR BACKEND)
+        let googleId = null;
+        let email = null;
         try {
             const decoded = jwtDecode(idToken);
+            googleId = decoded.sub;
+            email = decoded.email;
             console.log("Decoded JWT (client-side, for info only):", decoded);
         } catch (decodeError) {
             console.error("Error decoding JWT on client:", decodeError);
@@ -155,10 +158,14 @@ class Register extends React.Component {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ token: idToken }), // Send the ID token
+                body: JSON.stringify({ token: idToken, googleId, email }), // Añade googleId y email
             });
 
             const data = await backendResponse.json();
+
+            if (backendResponse.ok && data.token) {
+                localStorage.setItem('token', data.token); // Guarda el token de sesión
+            }
 
             if (backendResponse.ok) {
                 this.setState({

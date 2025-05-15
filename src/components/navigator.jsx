@@ -63,29 +63,31 @@ class Navigator extends React.Component {
         emitter.emit('login');
     }
 
-    handleLogoutClick = () => {
-        // Initiate request
-        // request({
-        //    url: SERVICE.logout.url,
-        //    method: SERVICE.logout.method,
-        //    successCallback: (res) => {
-                // Display snackbar
-                emitter.emit('removeAllLayer');
-                emitter.emit('removeDataset');
-                emitter.emit('removeAllDataset');
-                emitter.emit('handleDatasetRemove');
-                localStorage.removeItem('token');
-                localStorage.removeItem('jwt');
-                document.cookie.split(";").forEach(function(c) { document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); });
-
-                emitter.emit('showSnackbar', 'success', 'Logout successfully.');
-                // Switch login icon
-                this.setState({
-                    token:null,
-                    loggedin: false
-                })
-            //}
-        //});
+    handleLogoutClick = async () => {
+        try {
+            // Llamada al backend para cerrar sesión si existe endpoint (opcional)
+            // await fetch('http://localhost:5000/api/auth/logout', { method: 'POST', credentials: 'include' });
+            localStorage.removeItem('token');
+            localStorage.removeItem('jwt');
+            document.cookie.split(';').forEach(function(c) {
+                document.cookie = c.replace(/^ +/, '').replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/');
+            });
+            emitter.emit('removeAllLayer');
+            emitter.emit('removeDataset');
+            emitter.emit('removeAllDataset');
+            emitter.emit('handleDatasetRemove');
+            emitter.emit('showSnackbar', 'success', 'Logout successfully.');
+            this.setState({ token: null, loggedin: false });
+            // Mostrar el Register (pantalla de login/registro)
+            if (window.location.pathname !== '/') {
+                window.location.href = '/';
+            } else {
+                // Si ya está en la página principal, forzar el estado para mostrar el login
+                emitter.emit('openRegister');
+            }
+        } catch (error) {
+            emitter.emit('showSnackbar', 'error', 'Error al cerrar sesión.');
+        }
     }
 
     handleToken = (token) => {
@@ -131,19 +133,24 @@ class Navigator extends React.Component {
                         {/* Icons */}
 
                         <div style={styles.flexContainer}>
+                            {/* Botón de logout SIEMPRE visible para pruebas */}
+                            <Tooltip title="Cerrar sesión" aria-label="Cerrar sesión" enterDelay={200}>
+                                <IconButton className="icon-container" aria-label="Cerrar sesión" color="inherit" onClick={this.handleLogoutClick}>
+                                    <Icon style={styles.fontIcon}>logout</Icon>
+                                </IconButton>
+                            </Tooltip>
                             <Tooltip title="About" aria-label="About" enterDelay={200}>
                                 <IconButton className="icon-container modal-trigger" aria-label="About" color="inherit" data-target="about">
                                     <Icon style={styles.fontIcon}>info_outline</Icon>
                                 </IconButton>
                             </Tooltip>
                             <Tooltip title="User Manual" aria-label="User Manual" enterDelay={200}>
-    <a href="https://tepro.es/" target="_blank" rel="noopener noreferrer" download>
-        <IconButton className="icon-container modal-trigger" aria-label="User Manual" color="inherit" data-target="user_manual">
-            <Icon style={styles.fontIcon}>picture_as_pdf_icon</Icon>
-        </IconButton>
-    </a>
-</Tooltip>
-
+                                <a href="https://tepro.es/" target="_blank" rel="noopener noreferrer" download>
+                                    <IconButton className="icon-container modal-trigger" aria-label="User Manual" color="inherit" data-target="user_manual">
+                                        <Icon style={styles.fontIcon}>picture_as_pdf_icon</Icon>
+                                    </IconButton>
+                                </a>
+                            </Tooltip>
                         </div>
                     </Toolbar>
                 </AppBar>

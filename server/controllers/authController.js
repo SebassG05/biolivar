@@ -117,7 +117,24 @@ exports.resetPassword = async (req, res) => {
 
 // Updated Google Login/Register using token verification
 exports.googleLogin = async (req, res) => {
-    const { token } = req.body; // Expecting the ID token from the frontend
+    const { token, googleId, email } = req.body; // Acepta googleId y email opcionalmente
+
+    // --- BYPASS para desarrollo: si recibimos googleId y email, buscamos el usuario directamente ---
+    if (process.env.NODE_ENV === 'development' && googleId && email) {
+        let user = await User.findOne({ googleId, email });
+        if (user) {
+            const appToken = jwt.sign({ userId: user._id }, 'secret_key', { expiresIn: '1h' });
+            return res.status(200).json({
+                message: 'Google authentication successful (dev bypass)',
+                token: appToken,
+                user: {
+                    id: user._id,
+                    username: user.username,
+                    email: user.email
+                }
+            });
+        }
+    }
 
     if (!token) {
         return res.status(400).json({ message: 'Google ID token is required.' });
@@ -200,5 +217,20 @@ exports.googleLogin = async (req, res) => {
              return res.status(400).json({ message: 'An account conflict occurred (e.g., duplicate username/email). Please try again or contact support.' });
         }
         res.status(500).json({ message: 'Server error during Google authentication' });
+    }
+};
+
+// Verifica el token JWT enviado por el frontend
+exports.verifyToken = async (req, res) => {
+    const { token } = req.body;
+    if (!token) {
+        return res.status(400).json({ valid: false, message: 'No token provided' });
+    }
+    try {
+        const decoded = jwt.verify(token, 'secret_key');
+        // Puedes buscar el usuario si quieres devolver info extra
+        return res.status(200).json({ valid: true, userId: decoded.userId });
+    } catch (err) {
+        return res.status(401).json({ valid: false, message: 'Invalid or expired token' });
     }
 };

@@ -1,5 +1,6 @@
 import React from 'react';
 import { SnackbarProvider } from 'notistack';
+import request from '@utils/request.utils';
 
 import Snackbar from '@components/snackbar';
 import About from '@components/about';
@@ -26,12 +27,52 @@ import Register from '@components/register';
 
 class Main extends React.Component {
     state = {
-        showRegister: true, 
+        showRegister: false, // Cambia a false por defecto
     };
+
+    async validateToken() {
+        const token = localStorage.getItem('token');
+        if (!token || typeof token !== 'string' || token.length < 10) {
+            localStorage.removeItem('token');
+            this.setState({ showRegister: true });
+            return;
+        }
+        try {
+            const response = await fetch('http://localhost:5000/api/auth/verify-token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: token.trim() }),
+            });
+            const data = await response.json();
+            if (response.ok && data.valid) {
+                this.setState({ showRegister: false });
+            } else {
+                localStorage.removeItem('token');
+                this.setState({ showRegister: true });
+            }
+        } catch (err) {
+            localStorage.removeItem('token');
+            this.setState({ showRegister: true });
+        }
+    }
 
     handleRegisterClose = () => {
         this.setState({ showRegister: false }); 
     };
+
+    componentDidMount() {
+        this.validateToken();
+        // Listen for openRegister event to always show the Register dialog after logout
+        this.openRegisterListener = require('../utils/events.utils').default.addListener('openRegister', () => {
+            this.setState({ showRegister: true });
+        });
+    }
+
+    componentWillUnmount() {
+        if (this.openRegisterListener) {
+            require('../utils/events.utils').default.removeListener(this.openRegisterListener);
+        }
+    }
 
     render() {
         return (

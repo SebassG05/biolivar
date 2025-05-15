@@ -262,41 +262,45 @@ function getInterpretationLabel(index, value) {
 }
 
 class LayerController extends React.Component {
-    state = {
-        open: false,
-        mapp: null,
-        selected: {},
-        resolution: 7,
-        zoom: 0,
-        layerForm: 'Border',
-        datasets: {},
-        layers: [],
-        assets: [], // Aquí guardaremos los assets de GEE
-        selectedAsset: '', // Aquí guardamos el asset seleccionado por el usuario
-        mapUrl: '', // Aquí guardamos la URL del mapa generado
-        legendExpanded: false,
-        showVegetationLegend: false,
-        infoOpen: false,
-        showSurfaceAnalysisLegend: false, // Nuevo estado para el subdesplegable
-        showSurfaceInfo: false, // Estado para el info del subdesplegable
-        selectedIndexType: 'NDVI', // Estado para el índice seleccionado
-        activeTool: null, // Nuevo estado para saber qué herramienta está activa
-        showChart: true, // Estado para mostrar/ocultar la gráfica
-        showHistogram: false, // Nuevo estado para el histograma
-        dates: null, // Fechas del dataset temporal
-        temporalValues: null, // Valores del dataset temporal
-        showBigSurfaceChart: false, // Estado para mostrar el modal con la gráfica ampliada
-        bandDates: null, // Fechas seleccionadas por el usuario en BandController
-        showSpatiotemporalLegend: false,
-        showSpatiotemporalInfo: false,
-        selectedSpatioVariables: [], // Solo se actualiza por evento externo
-        showBigSpatioChart: null, // Variable para ampliar gráfica espaciotemporal
-        spatioTemporalResults: {}, // Store real backend results per variable
-        loadingSpatioTemporal: false, // Loading state for backend fetch
-        spatioTemporalError: null, // Error state
-        lastActiveLayerId: null, // Última capa visible seleccionada
-        legendLayerIndex: 0, // Índice de la capa visible actualmente mostrada en la leyenda
-        legendViciLayerIndex: 0, // Índice de la capa VICI actualmente mostrada en la leyenda
+    constructor(props) {
+        super(props);
+        this.state = {
+            open: false,
+            mapp: null,
+            selected: {},
+            resolution: 7,
+            zoom: 0,
+            layerForm: 'Border',
+            datasets: {},
+            layers: [],
+            assets: [], // Aquí guardaremos los assets de GEE
+            selectedAsset: '', // Aquí guardamos el asset seleccionado por el usuario
+            mapUrl: '', // Aquí guardamos la URL del mapa generado
+            legendExpanded: false,
+            showVegetationLegend: false,
+            infoOpen: false,
+            showSurfaceAnalysisLegend: false, // Nuevo estado para el subdesplegable
+            showSurfaceInfo: false, // Estado para el info del subdesplegable
+            selectedIndexType: 'NDVI', // Estado para el índice seleccionado
+            activeTool: null, // Nuevo estado para saber qué herramienta está activa
+            showChart: true, // Estado para mostrar/ocultar la gráfica
+            showHistogram: false, // Nuevo estado para el histograma
+            dates: null, // Fechas del dataset temporal
+            temporalValues: null, // Valores del dataset temporal
+            showBigSurfaceChart: false, // Estado para mostrar el modal con la gráfica ampliada
+            bandDates: null, // Fechas seleccionadas por el usuario en BandController
+            showSpatiotemporalLegend: false,
+            showSpatiotemporalInfo: false,
+            selectedSpatioVariables: [], // Solo se actualiza por evento externo
+            showBigSpatioChart: null, // Variable para ampliar gráfica espaciotemporal
+            spatioTemporalResults: {}, // Store real backend results per variable
+            loadingSpatioTemporal: false, // Loading state for backend fetch
+            spatioTemporalError: null, // Error state
+            lastActiveLayerId: null, // Última capa visible seleccionada
+            legendLayerIndex: 0, // Índice de la capa visible actualmente mostrada en la leyenda
+            legendViciLayerIndex: 0, // Índice de la capa VICI actualmente mostrada en la leyenda
+            legendVariableLayerIndex: 0,
+        };
     }
 
     handleCloseClick = () => {
@@ -361,18 +365,17 @@ class LayerController extends React.Component {
     };
 
     handleLegendPrev = () => {
-        const visibleLayers = this.state.layers.filter(l => l.visible);
         this.setState(prev => ({
-            legendLayerIndex: prev.legendLayerIndex === 0 ? visibleLayers.length - 1 : prev.legendLayerIndex - 1
+            legendVariableLayerIndex: prev.legendVariableLayerIndex > 0 ? prev.legendVariableLayerIndex - 1 : prev.legendVariableLayerIndex
         }));
-    }
+    };
 
     handleLegendNext = () => {
-        const visibleLayers = this.state.layers.filter(l => l.visible);
+        const activeVariableLayers = this.state.layers.filter(l => l.visible && l.id && !l.id.toUpperCase().includes('VICI') && !l.id.toUpperCase().includes('SPATIO') && (['NDVI','EVI','GNDVI','NDMI','MSI','BI','SAVI'].some(idx => l.id.toUpperCase().includes(idx))));
         this.setState(prev => ({
-            legendLayerIndex: prev.legendLayerIndex === visibleLayers.length - 1 ? 0 : prev.legendLayerIndex + 1
+            legendVariableLayerIndex: prev.legendVariableLayerIndex < activeVariableLayers.length - 1 ? prev.legendVariableLayerIndex + 1 : prev.legendVariableLayerIndex
         }));
-    }
+    };
 
     handleLegendPrevVICI = () => {
         const viciLayers = this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('VICI'));
@@ -816,9 +819,9 @@ class LayerController extends React.Component {
     render() {
         const visibleLayers = Array.isArray(this.state.layers) ? this.state.layers.filter(layer => layer.visible) : [];
         const legendLayerIndex = Math.min(this.state.legendLayerIndex, visibleLayers.length - 1);
-        // --- CAMBIO: para el panel de análisis de la superficie, usar la primera capa de variable activa si existe ---
+        // --- CAMBIO: para el panel de análisis de la superficie, usar la capa de variable activa según el índice ---
         const activeVariableLayers = this.state.layers.filter(l => l.visible && l.id && !l.id.toUpperCase().includes('VICI') && !l.id.toUpperCase().includes('SPATIO') && (['NDVI','EVI','GNDVI','NDMI','MSI','BI','SAVI'].some(idx => l.id.toUpperCase().includes(idx))));
-        const topVariableLayer = activeVariableLayers.length > 0 ? activeVariableLayers[0] : null;
+        const topVariableLayer = activeVariableLayers.length > 0 ? activeVariableLayers[this.state.legendVariableLayerIndex] : null;
         const topVisibleLayer = topVariableLayer || (visibleLayers.length > 0 ? visibleLayers[legendLayerIndex] : null);
         const isSpatiotemporalOnly = this.defineSpatiotemporalOnly();
         const onlySpatiotemporal = Array.isArray(this.state.layers) && this.state.layers.length > 0 && this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('SPATIO')).length === this.state.layers.filter(l => l.visible).length;

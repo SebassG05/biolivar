@@ -816,7 +816,10 @@ class LayerController extends React.Component {
     render() {
         const visibleLayers = Array.isArray(this.state.layers) ? this.state.layers.filter(layer => layer.visible) : [];
         const legendLayerIndex = Math.min(this.state.legendLayerIndex, visibleLayers.length - 1);
-        const topVisibleLayer = visibleLayers.length > 0 ? visibleLayers[legendLayerIndex] : null;
+        // --- CAMBIO: para el panel de análisis de la superficie, usar la primera capa de variable activa si existe ---
+        const activeVariableLayers = this.state.layers.filter(l => l.visible && l.id && !l.id.toUpperCase().includes('VICI') && !l.id.toUpperCase().includes('SPATIO') && (['NDVI','EVI','GNDVI','NDMI','MSI','BI','SAVI'].some(idx => l.id.toUpperCase().includes(idx))));
+        const topVariableLayer = activeVariableLayers.length > 0 ? activeVariableLayers[0] : null;
+        const topVisibleLayer = topVariableLayer || (visibleLayers.length > 0 ? visibleLayers[legendLayerIndex] : null);
         const isSpatiotemporalOnly = this.defineSpatiotemporalOnly();
         const onlySpatiotemporal = Array.isArray(this.state.layers) && this.state.layers.length > 0 && this.state.layers.filter(l => l.visible && l.id && l.id.toUpperCase().includes('SPATIO')).length === this.state.layers.filter(l => l.visible).length;
         // Determinar si el panel de Cambios en la vegetación debe estar bloqueado
@@ -824,8 +827,6 @@ class LayerController extends React.Component {
         // Determinar si el análisis espaciotemporal debe estar bloqueado
         const spatiotemporalActive = this.state.selectedSpatioVariables && this.state.selectedSpatioVariables.length > 0;
         const blockSpatiotemporal = !(this.state.selectedSpatioVariables && this.state.selectedSpatioVariables.length > 0);
-        // Cálculo de cuántas capas de variable (índices) hay activas (no VICI, no SPATIO)
-        const activeVariableLayers = this.state.layers.filter(l => l.visible && l.id && !l.id.toUpperCase().includes('VICI') && !l.id.toUpperCase().includes('SPATIO') && (['NDVI','EVI','GNDVI','NDMI','MSI','BI','SAVI'].some(idx => l.id.toUpperCase().includes(idx))));
         // Si no hay ninguna capa visible, forzar a cerrar los paneles y no mostrar leyenda
         if (visibleLayers.length === 0) {
             return (

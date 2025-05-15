@@ -187,22 +187,20 @@ const indexPalettes = {
         '#ffffbf', '#d9ef8b', '#a6d96a', '#66bd63', '#1a9850', '#006837'
     ],
     EVI: [
-        '#a50026', '#d73027', '#f46d43', '#fdae61', '#fee08b',
-        '#ffffbf', '#d9ef8b', '#a6d96a', '#66bd63', '#1a9850', '#006837'
+        '#440154', '#31688e', '#35b779', '#fde725', '#ffea00', '#ff9800', '#d84315', '#388e3c', '#1976d2', '#0288d1', '#00bcd4'
     ],
     GNDVI: [
-        '#a50026', '#d73027', '#f46d43', '#fdae61', '#fee08b',
-        '#ffffbf', '#d9ef8b', '#a6d96a', '#66bd63', '#1a9850', '#006837'
+        '#00441b', '#006d2c', '#238b45', '#41ae76', '#66c2a4', '#99d8c9', '#ccece6', '#e5f5f9', '#f7fcfd', '#ffffcc', '#a1dab4'
     ],
     NDMI: [
-        '#f7e7c3', '#d9b77c', '#a2c8a3', '#51a4c5', '#0050ef', '#4b0082'
+        '#f7e7c3', '#d9b77c', '#a2c8a3', '#51a4c5', '#0050ef', '#4b0082', '#1976d2', '#0288d1', '#00bcd4', '#388e3c', '#d84315'
     ],
     MSI: [
-        '#f7e7c3', '#d9b77c', '#a2c8a3', '#51a4c5', '#0050ef', '#4b0082'
+        '#f7fcf0', '#e0f3db', '#ccebc5', '#a8ddb5', '#7bccc4', '#4eb3d3', '#2b8cbe', '#0868ac', '#084081', '#d84315', '#388e3c'
     ],
     BI: [
         '#000000', '#1a1a1a', '#333333', '#4d4d4d', '#666666', '#808080', '#999999', '#b3b3b3', '#cccccc', '#e6e6e6', '#ffffff'
-    ], // Invertido
+    ],
     SAVI: [
         '#a50026', '#d73027', '#f46d43', '#fdae61', '#fee08b',
         '#ffffbf', '#d9ef8b', '#a6d96a', '#66bd63', '#1a9850', '#006837'
@@ -1419,8 +1417,8 @@ class LayerController extends React.Component {
                                                                     datasets: [{
                                                                         label: 'Frecuencia',
                                                                         data: histData.counts,
-                                                                        backgroundColor: getPaletteForBins(indexPalettes[this.state.selectedIndexType] || ndviPalette, histData.counts.length),
-                                                                        borderColor: getPaletteForBins(indexPalettes[this.state.selectedIndexType] || ndviPalette, histData.counts.length),
+                                                                        backgroundColor: getPaletteForBins(indexPalettes[topVisibleLayer && (['NDVI','EVI','GNDVI','NDMI','MSI','BI','SAVI'].find(idx => topVisibleLayer.id && topVisibleLayer.id.toUpperCase().includes(idx))) || this.state.selectedIndexType] || ndviPalette, histData.counts.length),
+                                                                        borderColor: getPaletteForBins(indexPalettes[topVisibleLayer && (['NDVI','EVI','GNDVI','NDMI','MSI','BI','SAVI'].find(idx => topVisibleLayer.id && topVisibleLayer.id.toUpperCase().includes(idx))) || this.state.selectedIndexType] || ndviPalette, histData.counts.length),
                                                                         borderWidth: 1.5,
                                                                         borderRadius: 6
                                                                     }]

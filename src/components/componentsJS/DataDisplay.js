@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, Typography, Button, Grid } from '@mui/material';
 
-function DataDisplay({ data, onBack }) {
+function DataDisplay({ data, onBack, onSaveShape, saving }) {
     // Función para mostrar datos de los árboles
     const renderTrees = (trees) => {
         const treeEntries = Object.entries(trees).filter(([key, value]) => key !== 'recinto' && key !== 'total' && value > 0);
@@ -15,6 +15,9 @@ function DataDisplay({ data, onBack }) {
         <div>
             <Button onClick={onBack} variant="outlined" style={{ margin: '20px' }}>
                 Back to Search
+            </Button>
+            <Button onClick={onSaveShape} variant="contained" color="success" style={{ margin: '20px' }} disabled={saving}>
+                {saving ? 'Guardando...' : 'Guardar Parcela'}
             </Button>
             <Card style={{ marginTop: '5px', marginLeft: '20px', marginRight: '20px', marginBottom: '20px' }}>
                 <CardContent>

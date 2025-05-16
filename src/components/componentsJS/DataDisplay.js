@@ -16,7 +16,7 @@ function DataDisplay({ data, onBack }) {
             <Button onClick={onBack} variant="outlined" style={{ margin: '20px' }}>
                 Back to Search
             </Button>
-            <Card style={{ margin: '20px' }}>
+            <Card style={{ marginTop: '5px', marginLeft: '20px', marginRight: '20px', marginBottom: '20px' }}>
                 <CardContent>
                     <Typography variant="h5" component="div">
                         Información de la Parcela
@@ -42,28 +42,34 @@ function DataDisplay({ data, onBack }) {
                     <Typography variant="h6" component="div" style={{ marginTop: '20px' }}>
                         Detalles Adicionales
                     </Typography>
-                    <Grid container spacing={2}>
-                        {data.query && data.query.length > 0 ? data.query.map((item, index) => (
-                            <Grid item xs={12} sm={6} key={index}>
-                                <Card variant="outlined">
-                                    <CardContent>
-                                        <Typography variant="body2">
-                                            Uso: {item.uso_sigpac || 'No disponible'}
-                                        </Typography>
-                                        <Typography variant="body2">
-                                            Incidencias: {item.incidencias || 'No disponible'} - {item.inctexto ? item.inctexto.join(', ') : 'No disponible'}
-                                        </Typography>
-                                        <Typography variant="body2">
-                                            Altitud: {item.altitud || 'No disponible'} metros
-                                        </Typography>
-                                        <Typography variant="body2">
-                                            Pendiente Media: {item.pendiente_media || 'No disponible'}%
-                                        </Typography>
-                                    </CardContent>
-                                </Card>
+                    {data.query && data.query.length > 0 ? (
+                        <Grid container spacing={2}>
+                            <Grid item xs={12}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8, marginBottom: 8 }}>
+                                    <thead>
+                                        <tr style={{ background: '#f5f5f5' }}>
+                                            <th style={{ border: '1px solid #ddd', padding: 8 }}>Uso</th>
+                                            <th style={{ border: '1px solid #ddd', padding: 8 }}>Incidencias</th>
+                                            <th style={{ border: '1px solid #ddd', padding: 8 }}>Altitud (m)</th>
+                                            <th style={{ border: '1px solid #ddd', padding: 8 }}>Pendiente Media (%)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {data.query.map((item, index) => (
+                                            <tr key={index}>
+                                                <td style={{ border: '1px solid #ddd', padding: 8 }}>{item.uso_sigpac || 'No disponible'}</td>
+                                                <td style={{ border: '1px solid #ddd', padding: 8 }}>{item.incidencias || 'No disponible'}{item.inctexto ? ` - ${item.inctexto.join(', ')}` : ''}</td>
+                                                <td style={{ border: '1px solid #ddd', padding: 8 }}>{item.altitud || 'No disponible'}</td>
+                                                <td style={{ border: '1px solid #ddd', padding: 8 }}>{item.pendiente_media || 'No disponible'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </Grid>
-                        )) : <Typography style={{ marginLeft: '20px' }}>No existen detalles adicionales disponibles.</Typography>}
-                    </Grid>
+                        </Grid>
+                    ) : (
+                        <Typography style={{ marginLeft: '20px' }}>No existen detalles adicionales disponibles.</Typography>
+                    )}
 
                     <Typography variant="h6" component="div" style={{ marginTop: '20px' }}>
                                 Árboles en la Parcela

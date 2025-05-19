@@ -756,6 +756,10 @@ class LayerController extends React.Component {
         else if (variable === 'Precipitation') data = labels.map((_, i) => 40 + 30 * Math.abs(Math.sin(i / 2)) + 10 * Math.random());
         else if (variable === 'LST') data = labels.map((_, i) => 20 + 10 * Math.sin(i / 3) + 2 * Math.random());
         else if (variable === 'Percent_Tree_Cover') data = labels.map((_, i) => 60 + 5 * Math.cos(i / 2) + 2 * Math.random());
+        else if (variable === 'ET') data = labels.map((_, i) => 2 + 0.5 * Math.sin(i / 1.5) + 0.1 * Math.random());
+        else if (variable === 'LAI') data = labels.map((_, i) => 3 + 0.2 * Math.sin(i / 2) + 0.05 * Math.random());
+        else if (variable === 'Solar_Irradiance') data = labels.map((_, i) => 200 + 50 * Math.sin(i / 3) + 10 * Math.random());
+        else if (variable === 'NPP8') data = labels.map((_, i) => 100 + 20 * Math.sin(i / 2) + 5 * Math.random());
         else data = labels.map(() => 0);
         return { labels, data };
     };
@@ -1108,7 +1112,11 @@ class LayerController extends React.Component {
             { key: 'EVI', label: 'EVI (Enhanced Vegetation Index)' },
             { key: 'Precipitation', label: 'Precipitation (CHIRPS)' },
             { key: 'LST', label: 'Land Surface Temperature (LST)' },
-            { key: 'Percent_Tree_Cover', label: 'Percent Tree Cover (MODIS)' }
+            { key: 'Percent_Tree_Cover', label: 'Percent Tree Cover (MODIS)' },
+            { key: 'ET', label: 'Evapotranspiration (MODIS ET)' },
+            { key: 'LAI', label: 'Leaf Area Index (Sentinel-2 LAI)' },
+            { key: 'Solar_Irradiance', label: 'Solar Irradiance (ERA5-Land)' },
+            { key: 'NPP8', label: 'NPP-8d Carbon Balance (MODIS)' }
         ];
 
         const showSurfaceAnalysis = this.state.activeTool === 'surfaceAnalysis' || this.state.activeTool === 'both';

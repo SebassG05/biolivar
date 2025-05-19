@@ -23,12 +23,18 @@ const indexOptions = [
   { label: 'Precipitation (CHIRPS)', value: 'Precipitation' },
   { label: 'Land Surface Temperature (LST)', value: 'LST' },
   { label: 'Percent Tree Cover (MODIS)', value: 'Percent_Tree_Cover' },
+  { label: 'Evapotranspiration (MODIS ET)', value: 'ET' },
+  { label: 'Leaf Area Index (Sentinel-2 LAI)', value: 'LAI' },
+  { label: 'Solar Irradiance (ERA5-Land)', value: 'Solar_Irradiance' },
+  { label: 'NPP-8d Carbon Balance (MODIS)', value: 'NPP8' }
 ];
 
 const getToday = () => {
   const today = new Date();
   return today.toISOString().split('T')[0];
 };
+
+const PAGE_SIZE = 4; // Número de índices por página
 
 export default function HorizontalLinearStepperData({ onSubmit }) {
   const [activeStep, setActiveStep] = useState(0);
@@ -38,6 +44,7 @@ export default function HorizontalLinearStepperData({ onSubmit }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [page, setPage] = useState(0);
 
   useEffect(() => {
     const savedStartDate = localStorage.getItem('startDate');
@@ -132,6 +139,10 @@ export default function HorizontalLinearStepperData({ onSubmit }) {
     setActiveStep((prev) => prev - 1);
   };
 
+  // Calcular el número de páginas
+  const totalPages = Math.ceil(indexOptions.length / PAGE_SIZE);
+  const paginatedOptions = indexOptions.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
   return (
     <Box sx={{ width: 400, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#fff', borderRadius: 3, boxShadow: 2, p: 0, mt: 2 }}>
       <Stepper activeStep={activeStep} alternativeLabel sx={{ width: '100%', mb: 2, mt: 1 }}>
@@ -171,7 +182,7 @@ export default function HorizontalLinearStepperData({ onSubmit }) {
             Selecciona los índices a analizar
           </Typography>
           <FormGroup>
-            {indexOptions.map((option) => (
+            {paginatedOptions.map((option) => (
               <FormControlLabel
                 key={option.value}
                 control={
@@ -185,6 +196,13 @@ export default function HorizontalLinearStepperData({ onSubmit }) {
               />
             ))}
           </FormGroup>
+          {totalPages > 1 && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mt: 2, gap: 2 }}>
+              <Button size="small" variant="outlined" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>Anterior</Button>
+              <Typography variant="body2">Página {page + 1} de {totalPages}</Typography>
+              <Button size="small" variant="outlined" onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}>Siguiente</Button>
+            </Box>
+          )}
         </Box>
       )}
       {activeStep === 2 && (

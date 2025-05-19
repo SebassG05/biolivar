@@ -1447,6 +1447,104 @@ def spatiotemporal_analysis_v2():
                 features = filteredFeaturesCover.getInfo()['features']
                 data = [f['properties'] for f in features]
                 results['Percent_Tree_Cover'] = data
+            # --- ET (Evapotranspiración MOD16A2GF) ---
+            if 'ET' in indices:
+                et_coll = (ee.ImageCollection('MODIS/061/MOD16A2GF')
+                             .filterDate(start, end)
+                             .filterBounds(aoi)
+                             .select('ET'))
+                def monthly_et(y, m):
+                    subset = et_coll.filter(ee.Filter.calendarRange(y, y, 'year'))\
+                                    .filter(ee.Filter.calendarRange(m, m, 'month'))
+                    return ee.Algorithms.If(subset.size().gt(0),
+                        subset.sum()
+                              .multiply(0.1)
+                              .set({'system:time_start': ee.Date.fromYMD(y, m, 1)}),
+                        None)
+                yrs = ee.List.sequence(int(start[:4]), int(end[:4]))
+                mths = ee.List.sequence(1, 12)
+                et_imgs = ee.ImageCollection.fromImages(
+                               yrs.map(lambda y: mths.map(lambda m: monthly_et(y, m))).flatten()
+                           ).filter(ee.Filter.notNull(['system:time_start']))
+                feats = et_imgs.map(lambda img: ee.Feature(None, {
+                            'Date': ee.Date(img.get('system:time_start')).format('YYYY-MM'),
+                            'ET': img.reduceRegion(ee.Reducer.mean(), aoi, 500).get('ET')
+                        })).filter(ee.Filter.notNull(['ET']))
+                results['ET'] = [f['properties'] for f in feats.getInfo()['features']]
+            # --- LAI (Leaf Area Index, Sentinel-2 NDVI) ---
+            if 'LAI' in indices:
+                def s2_mask_clouds(im):
+                    scl = im.select('SCL')
+                    mask = scl.neq(3).And(scl.neq(8)).And(scl.neq(9)).And(scl.neq(10))
+                    return im.updateMask(mask)
+                s2 = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+                        .filterDate(start, end).filterBounds(aoi)
+                        .map(s2_mask_clouds)
+                        .map(lambda img: img.addBands(
+                            img.normalizedDifference(['B8', 'B4']).rename('NDVI'))))
+                def monthly_lai(y, m):
+                    subset = s2.filter(ee.Filter.calendarRange(y, y, 'year'))\
+                               .filter(ee.Filter.calendarRange(m, m, 'month'))
+                    return ee.Algorithms.If(subset.size().gt(0),
+                        subset.mean()
+                              .expression('3.618 * NDVI - 0.118', {'NDVI': subset.mean().select('NDVI')})
+                              .rename('LAI')
+                              .set({'system:time_start': ee.Date.fromYMD(y, m, 1)}),
+                        None)
+                lai_imgs = ee.ImageCollection.fromImages(
+                              yrs.map(lambda y: mths.map(lambda m: monthly_lai(y, m))).flatten()
+                           ).filter(ee.Filter.notNull(['system:time_start']))
+                feats = lai_imgs.map(lambda img: ee.Feature(None, {
+                            'Date': ee.Date(img.get('system:time_start')).format('YYYY-MM'),
+                            'LAI': img.reduceRegion(ee.Reducer.mean(), aoi, 10).get('LAI')
+                        })).filter(ee.Filter.notNull(['LAI']))
+                results['LAI'] = [f['properties'] for f in feats.getInfo()['features']]
+            # --- Solar Irradiance (ERA5-Land) ---
+            if 'Solar_Irradiance' in indices:
+                ssr = (ee.ImageCollection('ECMWF/ERA5_LAND/DAILY')
+                         .filterDate(start, end).filterBounds(aoi)
+                         .select('surface_solar_radiation_downwards'))
+                def monthly_ssr(y, m):
+                    subset = ssr.filter(ee.Filter.calendarRange(y, y, 'year'))\
+                                .filter(ee.Filter.calendarRange(m, m, 'month'))
+                    return ee.Algorithms.If(subset.size().gt(0),
+                        subset.sum()
+                              .multiply(1e-6)
+                              .rename('SSR')
+                              .set({'system:time_start': ee.Date.fromYMD(y, m, 1)}),
+                        None)
+                ssr_imgs = ee.ImageCollection.fromImages(
+                               yrs.map(lambda y: mths.map(lambda m: monthly_ssr(y, m))).flatten()
+                           ).filter(ee.Filter.notNull(['system:time_start']))
+                feats = ssr_imgs.map(lambda img: ee.Feature(None, {
+                            'Date': ee.Date(img.get('system:time_start')).format('YYYY-MM'),
+                            'Solar_Irradiance': img.reduceRegion(ee.Reducer.mean(), aoi, 10000).get('SSR')
+                        })).filter(ee.Filter.notNull(['Solar_Irradiance']))
+                results['Solar_Irradiance'] = [f['properties'] for f in feats.getInfo()['features']]
+            # --- NPP8 (balance de Carbono, MODIS) ---
+            if 'NPP8' in indices:
+                gpp = (ee.ImageCollection('MODIS/061/MOD17A2H')
+                         .filterDate(start, end).filterBounds(aoi)
+                         .select('Gpp'))
+                npp = (ee.ImageCollection('MODIS/061/MOD17A3HGF')
+                         .filterDate(start, end).filterBounds(aoi)
+                         .select('Npp'))
+                def npp8(img):
+                    y = ee.Date(img.get('system:time_start')).get('year').toInt()
+                    gpp_y = gpp.filter(ee.Filter.calendarRange(y, y, 'year')).sum()
+                    npp_y = npp.filter(ee.Filter.calendarRange(y, y, 'year')).mean()
+                    npp8  = img.expression('(gpp8 / gppY) * nppY', {
+                                'gpp8': img,
+                                'gppY': gpp_y,
+                                'nppY': npp_y
+                            }).multiply(0.0001).rename('NPP8')
+                    return npp8.copyProperties(img, ['system:time_start'])
+                npp8_coll = ee.ImageCollection(gpp.map(npp8))
+                feats = npp8_coll.map(lambda img: ee.Feature(None, {
+                            'Date': ee.Date(img.get('system:time_start')).format('YYYY-MM-dd'),
+                            'NPP8': img.reduceRegion(ee.Reducer.mean(), aoi, 500).get('NPP8')
+                        })).filter(ee.Filter.notNull(['NPP8']))
+                results['NPP8'] = [f['properties'] for f in feats.getInfo()['features']]
             return jsonify({"success": True, "results": results, "geojson": geojson_dict}), 200
     except Exception as e:
         print(str(e))

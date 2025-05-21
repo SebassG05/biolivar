@@ -118,7 +118,7 @@ class Navigator extends React.Component {
                     <Toolbar style={styles.toolbar}>
                         {/* Logo */}
                         <a style={styles.logoContainer} href="https://evenor-tech.com/">
-                        <img style={styles.logo} src="./static/assets/logo.png" alt="" />
+                        <img style={styles.logo} src="./static/assets/logo.png" alt="Evenor Tech Logo" />
                         </a>
 
                         &nbsp;
@@ -127,7 +127,25 @@ class Navigator extends React.Component {
                         &nbsp;
 
                         <a style={styles.logoContainer} href="https://tepro.es/">
-                        <img style={styles.logo} src="./static/assets/tepro_.png" alt="" />
+                        <img style={styles.logo} src="./static/assets/tepro_.png" alt="Tepro Logo" />
+                        </a>
+
+                        &nbsp;
+                        &nbsp;
+                        &nbsp;
+                        &nbsp;
+
+                        <a style={styles.logoContainer} href="#">
+                        <img style={styles.logo} src="./static/assets/carbonolivar.png" alt="Carbono Olivar Logo" />
+                        </a>
+
+                        &nbsp;
+                        &nbsp;
+                        &nbsp;
+                        &nbsp;
+
+                        <a style={styles.logoContainer} href="#">
+                        <img style={styles.logo} src="./static/assets/indibiolivar.png" alt="Indibio Olivar Logo" />
                         </a>
 
                         {/* Icons */}

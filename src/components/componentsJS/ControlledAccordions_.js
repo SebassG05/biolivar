@@ -41,6 +41,13 @@ const ControlledAccordions = forwardRef(function ControlledAccordions({ onSubmit
     aoiDataFiles: []
   });
   const [timer, setTimer] = useState(0);
+  // Buscar si hay una parcela seleccionada desde el display
+  const [selectedParcel, setSelectedParcel] = useState(null);
+  useEffect(() => {
+    const handler = (parcel) => setSelectedParcel(parcel);
+    emitter.on('selectSavedParcel', handler);
+    return () => emitter.off('selectSavedParcel', handler);
+  }, []);
 
   useEffect(() => {
     // Cargar fechas guardadas en localStorage al iniciar
@@ -112,8 +119,9 @@ const ControlledAccordions = forwardRef(function ControlledAccordions({ onSubmit
 
   const handleSubmit = async () => {
     // Validación previa antes de enviar
-    if (!formData.aoiDataFiles || formData.aoiDataFiles.length === 0) {
-      emitter.emit('showSnackbar', 'error', 'Debes subir un archivo de área de interés (.zip)');
+    // Si hay una parcela seleccionada, omitir validación de archivo zip
+    if (!selectedParcel && (!formData.aoiDataFiles || formData.aoiDataFiles.length === 0)) {
+      emitter.emit('showSnackbar', 'error', 'Debes subir un archivo de área de interés (.zip) o seleccionar una parcela guardada');
       return;
     }
     if (!formData.indexType) {
@@ -133,12 +141,34 @@ const ControlledAccordions = forwardRef(function ControlledAccordions({ onSubmit
     try {
       if (typeof setLoading === 'function') setLoading(true);
       setTimer(0);
-      const data = new FormData();
-
-      data.append('aoiDataFiles', formData.aoiDataFiles[0]);
-      data.append('indexType', formData.indexType);
-      data.append('startDate', formData.startDate);
-      data.append('endDate', formData.endDate);
+      let dataToSend = new FormData();
+      if (selectedParcel) {
+  // Si geometry es un array, busca el objeto que tenga type === "Polygon" o "MultiPolygon"
+  let geometry = selectedParcel.geometry;
+  if (Array.isArray(geometry)) {
+    geometry = geometry.find(g => g && (g.type === "Polygon" || g.type === "MultiPolygon"));
+  }
+  if (!geometry || !geometry.type || !geometry.coordinates) {
+    emitter.emit('showSnackbar', 'error', 'La geometría de la parcela guardada no es válida.');
+    return;
+  }
+  const geojson = {
+    type: "Feature",
+    geometry: geometry,
+    properties: {}
+  };
+  dataToSend.append('aoiGeoJson', JSON.stringify(geojson));
+  dataToSend.append('indexType', formData.indexType);
+  dataToSend.append('startDate', formData.startDate);
+  dataToSend.append('endDate', formData.endDate);
+}else {
+        const data = new FormData();
+        data.append('aoiDataFiles', formData.aoiDataFiles[0]);
+        data.append('indexType', formData.indexType);
+        data.append('startDate', formData.startDate);
+        data.append('endDate', formData.endDate);
+        dataToSend = data;
+      }
 
       // LOG para depuración
       console.log('startDate:', formData.startDate);
@@ -150,7 +180,7 @@ const ControlledAccordions = forwardRef(function ControlledAccordions({ onSubmit
       console.log('Calling API:', apiUrl);
       const response = await fetch(apiUrl, {
         method: 'POST',
-        body: data,
+        body: dataToSend,
       });
 
       const result = await response.json();

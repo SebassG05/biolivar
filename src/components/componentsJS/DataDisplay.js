@@ -1,5 +1,5 @@
-import React from 'react';
-import { Card, CardContent, Typography, Button, Grid } from '@mui/material';
+import React, { useState } from 'react';
+import { Card, CardContent, Typography, Button, Grid, Dialog, DialogTitle, DialogContent, DialogActions, TextField } from '@mui/material';
 
 function DataDisplay({ data, onBack, onSaveShape, saving }) {
     // Función para mostrar datos de los árboles
@@ -11,14 +11,84 @@ function DataDisplay({ data, onBack, onSaveShape, saving }) {
         return treeEntries.map(([key, value]) => `${key.charAt(0).toUpperCase() + key.slice(1)}: ${value}`).join(', ');
     };
 
+    const [modalOpen, setModalOpen] = useState(false);
+    const [customName, setCustomName] = useState('');
+    const [savingState, setSavingState] = useState(false);
+    const [error, setError] = useState('');
+    
+    // Lógica para guardar la parcela
+    const handleSaveClick = () => {
+        setModalOpen(true);
+    };
+
+    const handleModalClose = () => {
+        setModalOpen(false);
+        setCustomName('');
+        setError('');
+    };
+
+    const handleSaveConfirm = async () => {
+        if (!customName.trim()) {
+            setError('El nombre es obligatorio');
+            return;
+        }
+        setSavingState(true);
+        setError('');
+        try {
+            // Aquí se asume que data contiene la geometría y los datos SIGPAC
+            const payload = {
+                name: customName,
+                geometry: data.geometry, // Ajusta según cómo recibas la geometría
+                parcelaInfo: data.parcelaInfo,
+                query: data.query,
+                arboles: data.arboles,
+                convergencia: data.convergencia,
+                vuelo: data.vuelo
+            };
+            const response = await fetch('http://localhost:5000/api/parcelas/guardar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) throw new Error('Error al guardar la parcela');
+            setSavingState(false);
+            setModalOpen(false);
+            setCustomName('');
+            // Aquí podrías mostrar un mensaje de éxito o refrescar la lista de parcelas guardadas
+        } catch (e) {
+            setError('No se pudo guardar la parcela');
+            setSavingState(false);
+        }
+    };
+
     return (
         <div>
             <Button onClick={onBack} variant="outlined" style={{ margin: '20px' }}>
                 Back to Search
             </Button>
-            <Button onClick={onSaveShape} variant="contained" color="success" style={{ margin: '20px' }} disabled={saving}>
-                {saving ? 'Guardando...' : 'Guardar Parcela'}
+            <Button onClick={handleSaveClick} variant="contained" color="success" style={{ margin: '20px' }} disabled={saving || savingState}>
+                {(saving || savingState) ? 'Guardando...' : 'Guardar Parcela'}
             </Button>
+            {/* Modal para nombre personalizado */}
+            <Dialog open={modalOpen} onClose={handleModalClose}>
+                <DialogTitle>Guardar Parcela</DialogTitle>
+                <DialogContent>
+                    <TextField
+                        autoFocus
+                        margin="dense"
+                        label="Nombre personalizado de la parcela"
+                        fullWidth
+                        value={customName}
+                        onChange={e => setCustomName(e.target.value)}
+                        disabled={savingState}
+                    />
+                    {error && <Typography color="error">{error}</Typography>}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleModalClose} disabled={savingState}>Cancelar</Button>
+                    <Button onClick={handleSaveConfirm} color="primary" disabled={savingState}>Guardar</Button>
+                </DialogActions>
+            </Dialog>
             <Card style={{ marginTop: '5px', marginLeft: '20px', marginRight: '20px', marginBottom: '20px' }}>
                 <CardContent>
                     <Typography variant="h5" component="div">

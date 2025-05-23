@@ -357,42 +357,59 @@ def vegetation_index_change_inspector():
         print('request.form:', request.form)
         # --- END DEBUG LOGGING ---
 
-        # Validación de inputs
-        if 'aoiDataFiles' not in request.files or 'indexType' not in request.form:
-            print('Faltan datos requeridos (aoiDataFiles, indexType)')
-            return jsonify({"error": "Faltan datos requeridos (aoiDataFiles, indexType)"}), 400
+        import json
+        import tempfile
+        import os
+        from werkzeug.utils import secure_filename
+        import geopandas as gpd
 
-        aoi_file = request.files['aoiDataFiles']
+        # Nueva validación: aceptar archivo o geojson
+        aoiGeoJson = request.form.get('aoiGeoJson')
         band = request.form.get('indexType')
         start_date = request.form.get('startDate')
         end_date = request.form.get('endDate')
+        
+        if ('aoiDataFiles' not in request.files and not aoiGeoJson) or not band:
+            print('Faltan datos requeridos (aoiDataFiles o aoiGeoJson, indexType)')
+            return jsonify({"error": "Faltan datos requeridos (aoiDataFiles o aoiGeoJson, indexType)"}), 400
 
-        # Validación de fechas
-        if not start_date or not end_date:
-            print('Faltan fechas (startDate, endDate)')
-            return jsonify({"error": "Faltan fechas (startDate, endDate)"}), 400
-
-        try:
-            start_year = int(start_date[:4])
-            end_year = int(end_date[:4])
-            if start_year > end_year or (start_year == end_year and start_date[5:] > end_date[5:]):
-                print('El rango de fechas es inválido')
-                return jsonify({"error": "El rango de fechas es inválido: la fecha de inicio debe ser anterior a la fecha de fin."}), 400
-        except ValueError:
-            print('Formato de fecha inválido')
-            return jsonify({"error": "Formato de fecha inválido. Use el formato YYYY-MM-DD."}), 400
-
-        # Procesamiento del archivo AOI
-        with tempfile.TemporaryDirectory() as temp_dir:
-            aoi_filepath = os.path.join(temp_dir, secure_filename(aoi_file.filename))
-            aoi_file.save(aoi_filepath)
+        # --- SOLO UNO DE LOS DOS: archivo o geojson ---
+        if aoiGeoJson:
             try:
-                gdf = gpd.read_file(aoi_filepath)
-                geojson_dict = gdf.__geo_interface__
-                aoi = ee.FeatureCollection(geojson_dict['features'])
+                geojson_dict = json.loads(aoiGeoJson)
+                # Si es una lista, conviértela en FeatureCollection
+                if isinstance(geojson_dict, list):
+                    geojson_dict = {
+                        "type": "FeatureCollection",
+                        "features": [
+                            {"type": "Feature", "geometry": geom, "properties": {}} for geom in geojson_dict
+                        ]
+                    }
+                # Ahora procesa según el tipo
+                if geojson_dict.get('type') == 'FeatureCollection':
+                    aoi = ee.FeatureCollection(geojson_dict['features'])
+                elif geojson_dict.get('type') == 'Feature':
+                    aoi = ee.FeatureCollection([geojson_dict])
+                elif geojson_dict.get('type') == 'Polygon':
+                    aoi = ee.FeatureCollection([ee.Feature(ee.Geometry.Polygon(geojson_dict['coordinates']))])
+                else:
+                    raise ValueError("Formato de GeoJSON no soportado")
             except Exception as e:
-                print(f"Error leyendo el archivo AOI: {e}")
-                return jsonify({"error": f"Error leyendo el archivo AOI: {e}"}), 400
+                print(f"Error procesando aoiGeoJson: {e}")
+                return jsonify({"error": f"GeoJSON inválido: {str(e)}"}), 400
+        else:
+            # Procesamiento del archivo AOI
+            aoi_file = request.files['aoiDataFiles']
+            with tempfile.TemporaryDirectory() as temp_dir:
+                aoi_filepath = os.path.join(temp_dir, secure_filename(aoi_file.filename))
+                aoi_file.save(aoi_filepath)
+                try:
+                    gdf = gpd.read_file(aoi_filepath)
+                    geojson_dict = gdf.__geo_interface__
+                    aoi = ee.FeatureCollection(geojson_dict['features'])
+                except Exception as e:
+                    print(f"Error leyendo el archivo AOI: {e}")
+                    return jsonify({"error": f"Error leyendo el archivo AOI: {e}"}), 400
 
         def harmonizationRoy(oli):
             slopes = ee.Image.constant([0.9785, 0.9542, 0.9825, 1.0073, 1.0171, 0.9949])
@@ -447,10 +464,16 @@ def vegetation_index_change_inspector():
 
             return image.addBands([ndvi, evi, savi, msi, ndmi, nbr])
 
+                # ...existing code...
         startDay, endDay = start_date[5:], end_date[5:]
+        
+        # Añade esto para definir los años
+        start_year = int(start_date[:4])
+        end_year = int(end_date[:4])
         
         collection1 = getCombinedSRcollection(start_year, start_year, startDay, endDay, aoi)
         collection2 = getCombinedSRcollection(end_year, end_year, startDay, endDay, aoi)
+        # ...existing code...
 
         collection1_median = collection1.median().clip(aoi)
         collection2_median = collection2.median().clip(aoi)

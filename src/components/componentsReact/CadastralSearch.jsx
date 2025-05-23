@@ -33,7 +33,15 @@ function CadastralSearch({ onSubmit }) {
             const data = await response.json();
             console.log(data)
             onSubmit(data.output);    
-            setResult(data.parcelInfo);
+            // Pasa tanto la geometría (output) como los datos catastrales (parcelInfo)
+            setResult({
+                parcelaInfo: data.parcelInfo,
+                geometry: data.output,
+                query: data.parcelInfo.query, // si existe
+                arboles: data.parcelInfo.arboles, // si existe
+                convergencia: data.parcelInfo.convergencia, // si existe
+                vuelo: data.parcelInfo.vuelo // si existe
+            });
             setShowResults(true);
         } catch (error) {
             console.error("Error fetching data: ", error);

@@ -300,6 +300,8 @@ class LayerController extends React.Component {
             legendLayerIndex: 0, // Índice de la capa visible actualmente mostrada en la leyenda
             legendViciLayerIndex: 0, // Índice de la capa VICI actualmente mostrada en la leyenda
             legendVariableLayerIndex: 0,
+            showRusleLegend: false, 
+            showRusleInfo: false, 
         };
     }
 
@@ -437,21 +439,25 @@ class LayerController extends React.Component {
             this.setState({ open: true });
         });
 
-        // Modify the newLayer listener to store min/max if provided
+        // ...existing code in componentDidMount...
         this.newLayerListener = emitter.addListener('newLayer', (newLayerData) => {
-            // Evitar duplicados: solo agregar si no existe ya una capa con ese id
             this.setState((prevState) => {
                 const exists = prevState.layers.some(layer => layer.id === newLayerData.id);
                 if (exists) return null;
                 const layerToAdd = {
                     id: newLayerData.id,
-                    visible: newLayerData.visible !== undefined ? newLayerData.visible : true, // Default to true if not provided
-                    transparency: newLayerData.transparency !== undefined ? newLayerData.transparency : 100, // Default to 100 if not provided
-                    min: newLayerData.min, // Store min value
-                    max: newLayerData.max,  // Store max value
-                    dataset: newLayerData.dataset // Store dataset if provided
+                    visible: newLayerData.visible !== undefined ? newLayerData.visible : true,
+                    transparency: newLayerData.transparency !== undefined ? newLayerData.transparency : 100,
+                    min: newLayerData.min,
+                    max: newLayerData.max,
+                    dataset: newLayerData.dataset
                 };
-                return { layers: [...prevState.layers, layerToAdd] };
+                // Si es una capa RUSLE, abre el panel automáticamente
+                const isRusle = layerToAdd.id && layerToAdd.id.toUpperCase().includes('RUSLE');
+                return { 
+                    layers: [...prevState.layers, layerToAdd],
+                    showRusleLegend: isRusle ? true : prevState.showRusleLegend
+                };
             });
         });
 
@@ -703,6 +709,14 @@ class LayerController extends React.Component {
         return visibles.every(l => l.id && l.id.toUpperCase().includes('SPATIO'));
     };
 
+    defineRusleActive = () => {
+        const { layers } = this.state;
+        if (!Array.isArray(layers) || layers.length === 0) return false;
+        return layers.some(l => l.visible && l.id && (
+            l.id.toUpperCase().includes('RUSLE') || l.id.toUpperCase().includes('EROSION')
+        ));
+    };
+
     handleAssetChange = (event) => {
         const selectedAsset = event.target.value.id;  // Obtenemos el id del asset
         const selectedType = event.target.value.type;  // Obtenemos el tipo del asset
@@ -820,6 +834,16 @@ class LayerController extends React.Component {
         this.setState((prev) => ({ showSpatiotemporalInfo: !prev.showSpatiotemporalInfo }));
     };
 
+        toggleRusleLegend = () => {
+        this.setState(prevState => ({
+            showRusleLegend: !prevState.showRusleLegend
+        }));
+    };
+    
+    handleRusleInfoClick = () => {
+        this.setState(prev => ({ showRusleInfo: !prev.showRusleInfo }));
+    };
+
     render() {
         const visibleLayers = Array.isArray(this.state.layers) ? this.state.layers.filter(layer => layer.visible) : [];
         const legendLayerIndex = Math.min(this.state.legendLayerIndex, visibleLayers.length - 1);
@@ -836,6 +860,7 @@ class LayerController extends React.Component {
         const blockSpatiotemporal = !(this.state.selectedSpatioVariables && this.state.selectedSpatioVariables.length > 0);
         // Determinar si el panel de Análisis de la superficie debe estar bloqueado
         const blockSurfaceAnalysis = activeVariableLayers.length === 0;
+        const blockRusle = !this.defineRusleActive();
         // Si no hay ninguna capa visible, forzar a cerrar los paneles y no mostrar leyenda
         if (visibleLayers.length === 0) {
             return (
@@ -1265,6 +1290,51 @@ class LayerController extends React.Component {
                                             {this.state.showVegetationLegend ? 'expand_less' : 'expand_more'}
                                         </Icon>
                                     </div>
+
+                                    {/* Modelo Rusle */}
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            cursor: blockRusle ? 'not-allowed' : 'pointer',
+                                            padding: '10px 0',
+                                            borderBottom: '1px solid #eee',
+                                            opacity: blockRusle ? 0.4 : 1,
+                                            background: blockRusle ? '#f0f0f0' : undefined,
+                                            color: blockRusle ? '#aaa' : undefined
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                            <Typography variant="body2"><strong><b>Modelo Rusle</b></strong></Typography>
+                                            <IconButton size="small" onClick={e => { if (!blockRusle) { e.stopPropagation(); this.handleRusleInfoClick(); } }} style={{ marginLeft: 6, color: blockRusle ? '#aaa' : '#1976d2' }} disabled={blockRusle}>
+                                                <Icon style={{ fontSize: 18 }}>info</Icon>
+                                            </IconButton>
+                                        </div>
+                                        <Icon style={{ cursor: blockRusle ? 'not-allowed' : 'pointer', color: blockRusle ? '#aaa' : undefined }} onClick={e => { if (!blockRusle) { e.stopPropagation(); this.toggleRusleLegend(); } }}>
+                                            {this.state.showRusleLegend ? 'expand_less' : 'expand_more'}
+                                        </Icon>
+                                    </div>
+                                    <Collapse in={this.state.showRusleInfo && !blockRusle} timeout="auto" unmountOnExit>
+                                        <div style={{ padding: '12px 16px', background: '#f9f9f9', borderRadius: 8, margin: '8px 0' }}>
+                                            <Typography variant="subtitle2" gutterBottom><b>¿Para qué sirve el modelo RUSLE?</b></Typography>
+                                            <Typography variant="body2" style={{ textAlign: 'justify' }}>
+                                                El modelo RUSLE permite estimar la erosión del suelo en función de factores como la lluvia, el tipo de suelo, la topografía, el uso del suelo y las prácticas de manejo. Este panel muestra los resultados del modelo para el área seleccionada.
+                                            </Typography>
+                                        </div>
+                                    </Collapse>
+                                    <Collapse in={this.state.showRusleLegend && !blockRusle} timeout="auto" unmountOnExit>
+                                        <div style={{ padding: '10px 0', textAlign: 'center', maxHeight: '250px', overflowY: 'auto' }}>
+                                            {/* Aquí puedes poner la leyenda o resultados específicos del modelo Rusle */}
+                                            <Typography variant="subtitle2" style={{ fontWeight: 700, color: '#490EFF', marginBottom: 8 }}>Erosión estimada (t/ha/año)</Typography>
+                                            {/* Puedes reutilizar getLegendContent si tienes una capa activa Rusle */}
+                                            {(() => {
+                                                const rusleLayer = this.state.layers.find(l => l.visible && l.id && l.id.toUpperCase().includes('RUSLE'));
+                                                return rusleLayer ? this.getLegendContent(rusleLayer) : null;
+                                            })()}
+                                        </div>
+                                    </Collapse>
+
                                     {/* Info collapsible */}
                                     <Collapse in={this.state.infoOpen && !blockVegetation} timeout="auto" unmountOnExit>
                                         <div style={{ padding: '12px 16px', background: '#f9f9f9', borderRadius: 8, margin: '8px 0' }}>

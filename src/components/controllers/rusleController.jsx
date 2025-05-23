@@ -258,8 +258,15 @@ class RusleController extends React.Component {
         this.setState({url: data})
         console.log("Datos recibidos en ModelController:", data);
         emitter.emit('moveURL', this.state.url);
-        // Puedes manejar los datos como desees aquí
-      };
+        // Emitir evento para crear la capa con fechas
+        emitter.emit('newLayer', {
+            id: 'Erosion_Result',
+            visible: true,
+            transparency: 100,
+            startDate: data.startDate,
+            endDate: data.endDate
+        });
+    };
 
     handleAddClick = () => {
         // Get GeoJSON from map

@@ -180,44 +180,44 @@ export default function ControlledAccordions({onSubmit}) {
       setLoading(true);
       setTimer(0); // Reset the timer when the submit button is clicked
       const data = new FormData();
-      console.log(formData.endDate);
       data.append('aoiDataFiles', formData.aoiDataFiles[0]);
       data.append('startDate', formData.startDate);
       data.append('endDate', formData.endDate);
-      console.log(formData)
+  
       for (const key in formData.satelliteData) {
         data.append(key, formData.satelliteData[key]);
       }
-
       for (const key in formData.indexes) {
         data.append(key, formData.indexes[key]);
       }
-
       for (const key in formData.modelFeatures) {
         data.append(key, formData.modelFeatures[key]);
       }
-
       for (const key in formData.performanceIndicators) {
         data.append(key, formData.performanceIndicators[key]);
       }
-      
-      console.log(data);
-
+  
       const response = await fetch('https://gobiolivar.evenor-tech.com/api/rusle', {
-         method: 'POST',
-         body: data
+        method: 'POST',
+        body: data
       });
-
+  
       const result = await response.json();
-      if(result){
-        console.log('Data sent successfully', result);
-        onSubmit(result.output);
+      if (result) {
+        // Asegúrate de que el objeto enviado a onSubmit tiene las fechas
+        const rusleOutput = {
+          ...result.output,
+          startDate: formData.startDate,
+          endDate: formData.endDate,
+          id: 'Erosion_Result', // Asegúrate de poner un id si no viene del backend
+          visible: true,
+          transparency: 100
+        };
+        onSubmit(rusleOutput); // <-- Esto debe emitir el evento newLayer en el padre
         setLoading(false);
         emitter.emit('closeAllController');
         emitter.emit('openLayerController');
       }
-
-
     } catch (error) {
       setLoading(false);
       emitter.emit('showSnackbar', 'error', `Error: '${error}'`);

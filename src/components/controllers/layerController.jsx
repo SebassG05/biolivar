@@ -6,6 +6,7 @@ import { MuiThemeProvider, createTheme } from '@material-ui/core/styles';
 import { Collapse } from '@material-ui/core';
 import { Bar, Line } from 'react-chartjs-2';
 
+
 const GlobalStyles = createTheme({
     typography: {
         fontFamily: 'Lato, Arial, sans-serif',
@@ -261,6 +262,28 @@ function getInterpretationLabel(index, value) {
     return '';
 }
 
+// Barra de colores para la leyenda Rusle
+function RusleColorBar({ min, max }) {
+    // Paleta degradada para Rusle (ajusta los colores si lo necesitas)
+    const palette = ['#490EFF', '#12F4FF', '#12FF50', '#E5FF12', '#FF4812'];
+    const gradient = `linear-gradient(to right, ${palette.join(', ')})`;
+    return (
+        <div style={{ width: '100%', margin: '8px 0' }}>
+            <div style={{
+                width: '100%',
+                height: 18,
+                borderRadius: 6,
+                background: gradient,
+                boxShadow: '0 1px 4px #0002'
+            }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2 }}>
+                <span>Mín: {min}</span>
+                <span>Máx: {max}</span>
+            </div>
+        </div>
+    );
+}
+
 class LayerController extends React.Component {
     constructor(props) {
         super(props);
@@ -450,10 +473,15 @@ class LayerController extends React.Component {
                     transparency: newLayerData.transparency !== undefined ? newLayerData.transparency : 100,
                     min: newLayerData.min,
                     max: newLayerData.max,
-                    dataset: newLayerData.dataset
+                    dataset: newLayerData.dataset,
+                    // Añade estas dos líneas:
+                    startDate: newLayerData.startDate,
+                    endDate: newLayerData.endDate
                 };
                 // Si es una capa RUSLE, abre el panel automáticamente
-                const isRusle = layerToAdd.id && layerToAdd.id.toUpperCase().includes('RUSLE');
+                const isRusle = layerToAdd.id && (
+                    layerToAdd.id.toUpperCase().includes('RUSLE') || layerToAdd.id.toUpperCase().includes('EROSION')
+                );
                 return { 
                     layers: [...prevState.layers, layerToAdd],
                     showRusleLegend: isRusle ? true : prevState.showRusleLegend
@@ -861,6 +889,11 @@ class LayerController extends React.Component {
         // Determinar si el panel de Análisis de la superficie debe estar bloqueado
         const blockSurfaceAnalysis = activeVariableLayers.length === 0;
         const blockRusle = !this.defineRusleActive();
+        const rusleLayer = this.state.layers.find(
+        l => l.visible && l.id && (
+            l.id.toUpperCase().includes('RUSLE') || l.id.toUpperCase().includes('EROSION')
+        )
+        );
         // Si no hay ninguna capa visible, forzar a cerrar los paneles y no mostrar leyenda
         if (visibleLayers.length === 0) {
             return (
@@ -1323,15 +1356,23 @@ class LayerController extends React.Component {
                                             </Typography>
                                         </div>
                                     </Collapse>
-                                    <Collapse in={this.state.showRusleLegend && !blockRusle} timeout="auto" unmountOnExit>
+                                        <Collapse in={this.state.showRusleLegend && !blockRusle} timeout="auto" unmountOnExit>
                                         <div style={{ padding: '10px 0', textAlign: 'center', maxHeight: '250px', overflowY: 'auto' }}>
-                                            {/* Aquí puedes poner la leyenda o resultados específicos del modelo Rusle */}
-                                            <Typography variant="subtitle2" style={{ fontWeight: 700, color: '#490EFF', marginBottom: 8 }}>Erosión estimada (t/ha/año)</Typography>
-                                            {/* Puedes reutilizar getLegendContent si tienes una capa activa Rusle */}
-                                            {(() => {
-                                                const rusleLayer = this.state.layers.find(l => l.visible && l.id && l.id.toUpperCase().includes('RUSLE'));
-                                                return rusleLayer ? this.getLegendContent(rusleLayer) : null;
-                                            })()}
+                                            <Typography variant="subtitle2" style={{ fontWeight: 700, color: '#490EFF', marginBottom: 8 }}>Paleta Modelo Rusle</Typography>
+                                            {/* Barra de colores para Rusle */}
+                                            <RusleColorBar
+                                                min={(rusleLayer && rusleLayer.min != null) ? rusleLayer.min : 0}
+                                                max={(rusleLayer && rusleLayer.max != null) ? rusleLayer.max : 1}
+                                            />
+
+                                            {rusleLayer && rusleLayer.startDate && rusleLayer.endDate && (
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 4 }}>
+                                                    <span>Inicio: {rusleLayer.startDate}</span>
+                                                    <span>Fin: {rusleLayer.endDate}</span>
+                                                </div>
+                                            )}
+                                            {/* Si quieres, puedes dejar la leyenda antigua debajo */}
+                                            {/* {rusleLayer ? this.getLegendContent(rusleLayer) : null} */}
                                         </div>
                                     </Collapse>
 

@@ -35,12 +35,12 @@ function CadastralSearch({ onSubmit }) {
             onSubmit(data.output);    
             // Pasa tanto la geometría (output) como los datos catastrales (parcelInfo)
             setResult({
-                parcelaInfo: data.parcelInfo,
+                parcelaInfo: data.parcelInfo.parcelaInfo || {},
                 geometry: data.output,
-                query: data.parcelInfo.query, // si existe
-                arboles: data.parcelInfo.arboles, // si existe
-                convergencia: data.parcelInfo.convergencia, // si existe
-                vuelo: data.parcelInfo.vuelo // si existe
+                query: data.parcelInfo.query || [],
+                arboles: data.parcelInfo.arboles || [],
+                convergencia: data.parcelInfo.convergencia || {},
+                vuelo: data.parcelInfo.vuelo || {}
             });
             setShowResults(true);
         } catch (error) {

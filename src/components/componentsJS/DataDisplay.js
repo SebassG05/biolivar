@@ -98,19 +98,19 @@ function DataDisplay({ data, onBack, onSaveShape, saving }) {
                     <div style={{ maxHeight: 300, overflowY: 'auto' }}>
 
                     <Typography variant="subtitle1" color="textSecondary">
-                        Provincia: {data.parcelaInfo.provincia || 'No existe información en SIGPAC sobre esto'}
+                        Provincia: {data.parcelaInfo.provincia != null && data.parcelaInfo.provincia !== undefined ? data.parcelaInfo.provincia : 'No existe información en SIGPAC sobre esto'}
                     </Typography>
                     <Typography variant="subtitle1" color="textSecondary">
-                        Municipio: {data.parcelaInfo.municipio || 'No existe información en SIGPAC sobre esto'}
+                        Municipio: {data.parcelaInfo.municipio != null && data.parcelaInfo.municipio !== undefined ? data.parcelaInfo.municipio : 'No existe información en SIGPAC sobre esto'}
                     </Typography>
                     <Typography variant="subtitle1" color="textSecondary">
-                        Polígono: {data.parcelaInfo.poligono}, Parcela: {data.parcelaInfo.parcela || 'No existe información en SIGPAC sobre esto'}
+                        Polígono: {data.parcelaInfo.poligono != null && data.parcelaInfo.poligono !== undefined ? data.parcelaInfo.poligono : 'No existe información en SIGPAC sobre esto'}, Parcela: {data.parcelaInfo.parcela != null && data.parcelaInfo.parcela !== undefined ? data.parcelaInfo.parcela : 'No existe información en SIGPAC sobre esto'}
                     </Typography>
                     <Typography variant="subtitle1" color="textSecondary">
-                        Superficie: {data.parcelaInfo.dn_surface ? `${data.parcelaInfo.dn_surface.toFixed(2)} m²` : 'No existe información en SIGPAC sobre esto'}
+                        Superficie: {data.parcelaInfo.dn_surface != null && data.parcelaInfo.dn_surface !== undefined ? `${data.parcelaInfo.dn_surface.toFixed(2)} m²` : 'No existe información en SIGPAC sobre esto'}
                     </Typography>
                     <Typography variant="subtitle1" color="textSecondary">
-                        Referencia Catastral: {data.parcelaInfo.referencia_cat || 'No existe información en SIGPAC sobre esto'}
+                        Referencia Catastral: {data.parcelaInfo.referencia_cat != null && data.parcelaInfo.referencia_cat !== undefined ? data.parcelaInfo.referencia_cat : 'No existe información en SIGPAC sobre esto'}
                     </Typography>
 
                     <Typography variant="h6" component="div" style={{ marginTop: '20px' }}>

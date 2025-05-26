@@ -45,9 +45,10 @@ function DataDisplay({ data, onBack, onSaveShape, saving }) {
                 convergencia: data.convergencia,
                 vuelo: data.vuelo
             };
+            const token = localStorage.getItem('token');
             const response = await fetch('http://localhost:5000/api/parcelas/guardar', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(payload)
             });
             if (!response.ok) throw new Error('Error al guardar la parcela');

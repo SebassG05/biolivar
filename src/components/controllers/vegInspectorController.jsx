@@ -200,7 +200,12 @@ function ParcelDropdown({ onSelect }) {
     const [parcels, setParcels] = useState([]);
     const [selected, setSelected] = useState('');
     useEffect(() => {
-        fetch('http://localhost:5000/api/parcelas/listar')
+        const token = localStorage.getItem('token');
+        fetch('http://localhost:5000/api/parcelas/listar', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
             .then(res => res.json())
             .then(data => {
                 if (data.success) setParcels(data.parcels);

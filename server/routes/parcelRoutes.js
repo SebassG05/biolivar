@@ -2,13 +2,14 @@
 const express = require('express');
 const router = express.Router();
 const Parcel = require('../models/parcelModel');
+const authMiddleware = require('../middleware/authMiddleware');
 
-// Guardar una nueva parcela
-router.post('/guardar', async (req, res) => {
+// Guardar una nueva parcela (solo autenticado)
+router.post('/guardar', authMiddleware, async (req, res) => {
   try {
     const { name, geometry, parcelaInfo, query, arboles, convergencia, vuelo } = req.body;
-    // Si tienes autenticación, puedes obtener el userId del token
-    // const userId = req.userId;
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ success: false, message: 'No userId in token' });
     const newParcel = new Parcel({
       name,
       geometry,
@@ -16,8 +17,8 @@ router.post('/guardar', async (req, res) => {
       query,
       arboles,
       convergencia,
-      vuelo
-      // userId
+      vuelo,
+      userId
     });
     await newParcel.save();
     res.status(201).json({ success: true, message: 'Parcela guardada correctamente' });
@@ -26,13 +27,12 @@ router.post('/guardar', async (req, res) => {
   }
 });
 
-// Listar parcelas guardadas
-router.get('/listar', async (req, res) => {
+// Listar parcelas guardadas (solo autenticado)
+router.get('/listar', authMiddleware, async (req, res) => {
   try {
-    // Si tienes autenticación, filtra por userId
-    // const userId = req.userId;
-    // const parcels = await Parcel.find({ userId });
-    const parcels = await Parcel.find();
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ success: false, message: 'No userId in token' });
+    const parcels = await Parcel.find({ userId });
     res.json({ success: true, parcels });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error al obtener las parcelas', error: error.message });

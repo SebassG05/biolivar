@@ -11,6 +11,7 @@ import FormGroup from '@mui/material/FormGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import emitter from '@utils/events.utils';
+import ParcelDropdown from '../controllers/ParcelDropdown';
 
 const steps = [
   'Date Selection',
@@ -46,6 +47,10 @@ export default function HorizontalLinearStepperData({ onSubmit }) {
   const [error, setError] = useState(null);
   const [page, setPage] = useState(0);
 
+  // NUEVO: Para seleccionar parcela guardada
+  const [selectedParcel, setSelectedParcel] = useState(null);
+  // Importa ParcelDropdown arriba: import ParcelDropdown from '@components/controllers/ParcelDropdown';
+
   useEffect(() => {
     const savedStartDate = localStorage.getItem('startDate');
     const savedEndDate = localStorage.getItem('endDate');
@@ -80,14 +85,20 @@ export default function HorizontalLinearStepperData({ onSubmit }) {
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
       setSelectedFile(e.target.files[0]);
+      setSelectedParcel(null); // Si sube ZIP, deselecciona parcela
     } else {
       setSelectedFile(null);
     }
   };
 
+  // NUEVO: Cuando selecciona parcela, deselecciona ZIP
+  const handleParcelSelect = (parcel) => {
+    setSelectedParcel(parcel);
+    setSelectedFile(null);
+  };
+
   const handleNext = async () => {
     if (activeStep === 2) {
-      // Emit selected indices for legend update
       emitter.emit('setSpatioTemporalSelected', selectedIndexes);
       setLoading(true);
       setError(null);
@@ -96,9 +107,32 @@ export default function HorizontalLinearStepperData({ onSubmit }) {
       formData.append('startDate', startDate);
       formData.append('endDate', endDate);
       selectedIndexes.forEach(idx => formData.append('indices[]', idx));
-      if (selectedFile) {
+
+      // NUEVO: Si hay parcela seleccionada, enviar su geojson
+      if (selectedParcel) {
+        let geometry = selectedParcel.geometry;
+        if (Array.isArray(geometry)) {
+          geometry = geometry.find(g => g && (g.type === "Polygon" || g.type === "MultiPolygon"));
+        }
+        if (!geometry || !geometry.type || !geometry.coordinates) {
+          setError('La geometría de la parcela guardada no es válida.');
+          setLoading(false);
+          return;
+        }
+        const geojson = {
+          type: "Feature",
+          geometry: geometry,
+          properties: {}
+        };
+        formData.append('aoiGeoJson', JSON.stringify(geojson));
+      } else if (selectedFile) {
         formData.append('aoiDataFiles', selectedFile);
+      } else {
+        setError('Debes subir un archivo ZIP o seleccionar una parcela guardada.');
+        setLoading(false);
+        return;
       }
+
       try {
         const response = await fetch('http://localhost:500/get_spatiotemporal', {
           method: 'POST',
@@ -207,8 +241,10 @@ export default function HorizontalLinearStepperData({ onSubmit }) {
       )}
       {activeStep === 2 && (
         <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', mb: 1, mt: 1 }}>
-          <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 500 }}>
-            Sube tu archivo de área de interés (.zip)
+          {/* NUEVO: Selector de parcela guardada */}
+          <ParcelDropdown onSelect={handleParcelSelect} />
+          <Typography variant="body2" sx={{ mb: 1, mt: 1, color: '#888' }}>
+            O sube un archivo ZIP:
           </Typography>
           <Button
             variant="outlined"
@@ -222,9 +258,10 @@ export default function HorizontalLinearStepperData({ onSubmit }) {
               accept=".zip"
               hidden
               onChange={handleFileChange}
+              disabled={!!selectedParcel}
             />
           </Button>
-          {selectedFile && (
+          {selectedFile && !selectedParcel && (
             <Typography variant="body2" sx={{ color: '#333', mb: 1 }}>
               Archivo seleccionado: {selectedFile.name}
             </Typography>
@@ -242,7 +279,7 @@ export default function HorizontalLinearStepperData({ onSubmit }) {
         <Button
           sx={{ color: '#3f51b5', fontWeight: 500 }}
           onClick={handleNext}
-          disabled={(activeStep === 2 && !selectedFile) || loading}
+          disabled={(activeStep === 2 && !selectedFile && !selectedParcel) || loading}
         >
           {activeStep === 2 ? (loading ? 'Procesando...' : 'FINALIZAR') : 'NEXT'}
         </Button>

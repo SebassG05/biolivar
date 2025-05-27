@@ -1068,11 +1068,11 @@ class LayerController extends React.Component {
             ),
             MSI: (
                 <div style={{ marginTop: 12 }}>
-                    <Typography variant="subtitle2"><b>MSI</b></Typography>
+                    <Typography variant="subtitle2"><b>MSI</b></Typography>a2c8a3
                     <div style={{
                         width: '100%',
                         height: 20,
-                        background: 'linear-gradient(to right, #f7e7c3, #d9b77c, #a2c8a3, #51a4c5, #0050ef, #4b0082)',
+                        background: 'linear-gradient(to right, #4b0082, #0050ef, #51a4c5, #a2c8a3, #d9b77c, #f7e7c3)',
                         borderRadius: 5,
                         margin: '10px 0'
                     }}></div>

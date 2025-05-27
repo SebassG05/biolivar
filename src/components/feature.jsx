@@ -37,7 +37,7 @@ class Feature extends React.Component {
         return (
             <div className="tap-target indigo accent-2" data-target="menu">
                 <div className="tap-target-content white-text">
-                    <h5>Welcome!</h5>
+                    <h5>Bienvenido!</h5>
                 </div>
             </div>
         );

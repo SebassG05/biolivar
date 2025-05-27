@@ -317,11 +317,48 @@ class BandController extends React.Component {
 
     handleDataSubmit = (data) => {
         this.setState({ loading: true });
-        // Notificar a LayerController que la herramienta activa es 'surfaceAnalysis'
         emitter.emit('setActiveTool', 'surfaceAnalysis');
-        // Mostrar log para depuración
         console.log('Datos enviados al backend:', data);
-        if (data[0].aoiDataFiles && data[0].aoiDataFiles.length > 0) {
+        // Si el Stepper envía un FormData directamente (nuevo flujo)
+        if (data[0] instanceof FormData) {
+            fetch('http://localhost:500/get_image', {
+                method: 'POST',
+                body: data[0]
+            })
+                .then(response => response.json())
+                .then(result => {
+                    this.setState({ loading: false });
+                    console.log('Respuesta del backend:', result);
+                    if (result && result.success && Array.isArray(result.output)) {
+                        this.setState({ url: result.output });
+                        emitter.emit('newLayer', {
+                            id: result.output[2],
+                            visible: true,
+                            transparency: 100,
+                            min: result.output[4],
+                            max: result.output[5],
+                            dataset: result.output[6]
+                        });
+                        const fechas = Array.isArray(result.output[6]) ? result.output[6].map(d => d.Date).filter(Boolean) : [];
+                        emitter.emit('setBandDates', fechas);
+                        emitter.emit('moveURL', result.output);
+                        emitter.emit('closeAllController');
+                        emitter.emit('openLayerController');
+                    } else if (result && result.output) {
+                        this.setState({ url: result.output });
+                        emitter.emit('moveURL', result.output);
+                        emitter.emit('closeAllController');
+                        emitter.emit('openLayerController');
+                    } else {
+                        emitter.emit('showSnackbar', 'error', 'No se recibió una URL de capa válida del backend.');
+                    }
+                })
+                .catch(error => {
+                    this.setState({ loading: false });
+                    console.error('Error:', error);
+                    emitter.emit('showSnackbar', 'error', 'Error al subir el archivo o procesar la capa.');
+                });
+        } else if (data[0].aoiDataFiles && data[0].aoiDataFiles.length > 0) {
             const formData = new FormData();
             formData.append('startDate', data[0].startDate);
             formData.append('endDate', data[0].endDate);
@@ -338,21 +375,19 @@ class BandController extends React.Component {
                     if (result && result.success && Array.isArray(result.output)) {
                         this.setState({ url: result.output });
                         emitter.emit('newLayer', {
-                            id: result.output[2], // nombre de la capa
+                            id: result.output[2],
                             visible: true,
                             transparency: 100,
                             min: result.output[4],
                             max: result.output[5],
-                            dataset: result.output[6] // <--- aquí va el array de valores
+                            dataset: result.output[6]
                         });
-                        // EXTRAER FECHAS Y EMITIRLAS
                         const fechas = Array.isArray(result.output[6]) ? result.output[6].map(d => d.Date).filter(Boolean) : [];
                         emitter.emit('setBandDates', fechas);
                         emitter.emit('moveURL', result.output);
                         emitter.emit('closeAllController');
                         emitter.emit('openLayerController');
                     } else if (result && result.output) {
-                        // Soporte para respuesta antigua (solo url)
                         this.setState({ url: result.output });
                         emitter.emit('moveURL', result.output);
                         emitter.emit('closeAllController');
@@ -365,53 +400,6 @@ class BandController extends React.Component {
                     this.setState({ loading: false });
                     console.error('Error:', error);
                     emitter.emit('showSnackbar', 'error', 'Error al subir el archivo o procesar la capa.');
-                });
-        } else if (data[1]) {
-            const formData = new FormData();
-            formData.append('startDate', data[0].startDate);
-            formData.append('endDate', data[0].endDate);
-            formData.append('indexType', data[0].indexType);
-            formData.append('geojson', JSON.stringify(data[1]));
-            console.log(formData);
-            console.log(data[1]);
-            fetch('http://localhost:500/get_image', {
-                method: 'POST',
-                body: formData
-            })
-                .then(response => response.json())
-                .then(result => {
-                    this.setState({ loading: false });
-                    console.log('Respuesta del backend:', result);
-                    if (result && result.success && Array.isArray(result.output)) {
-                        this.setState({ url: result.output });
-                        emitter.emit('newLayer', {
-                            id: result.output[2], // nombre de la capa
-                            visible: true,
-                            transparency: 100,
-                            min: result.output[4],
-                            max: result.output[5],
-                            dataset: result.output[6] // <--- aquí va el array de valores
-                        });
-                        // EXTRAER FECHAS Y EMITIRLAS
-                        const fechas = Array.isArray(result.output[6]) ? result.output[6].map(d => d.Date).filter(Boolean) : [];
-                        emitter.emit('setBandDates', fechas);
-                        emitter.emit('moveURL', result.output);
-                        emitter.emit('closeAllController');
-                        emitter.emit('openLayerController');
-                    } else if (result && result.output) {
-                        // Soporte para respuesta antigua (solo url)
-                        this.setState({ url: result.output });
-                        emitter.emit('moveURL', result.output);
-                        emitter.emit('closeAllController');
-                        emitter.emit('openLayerController');
-                    } else {
-                        emitter.emit('showSnackbar', 'error', 'No se recibió una URL de capa válida del backend.');
-                    }
-                })
-                .catch(error => {
-                    this.setState({ loading: false });
-                    console.error('Error:', error);
-                    emitter.emit('showSnackbar', 'error', 'Error al procesar el GeoJSON.');
                 });
         } else {
             this.setState({ loading: false });

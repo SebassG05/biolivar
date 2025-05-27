@@ -10,6 +10,7 @@ import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import { DropzoneArea } from 'material-ui-dropzone';
+import ParcelDropdown from '../controllers/ParcelDropdown';
 
 const steps = ['Selección de fechas', 'Selección de tipo de índice', 'Subir datos'];
 
@@ -19,7 +20,8 @@ export default function HorizontalLinearStepperAOI({onSubmit, onIndexTypeChange,
     startDate: startDate || '',
     endDate: endDate || '',
     indexType: '',
-    aoiDataFiles: []
+    aoiDataFiles: [],
+    selectedParcel: null
   });
 
   useEffect(() => {
@@ -48,9 +50,34 @@ export default function HorizontalLinearStepperAOI({onSubmit, onIndexTypeChange,
   const handleSubmit = async () => {
     if (typeof setLoading === 'function') setLoading(true);
     try {
-        await onSubmit([formData]);
+      const dataToSend = new FormData();
+      dataToSend.append('startDate', formData.startDate);
+      dataToSend.append('endDate', formData.endDate);
+      dataToSend.append('indexType', formData.indexType);
+      if (formData.selectedParcel) {
+        let geometry = formData.selectedParcel.geometry;
+        if (Array.isArray(geometry)) {
+          geometry = geometry.find(g => g && (g.type === "Polygon" || g.type === "MultiPolygon"));
+        }
+        if (!geometry || !geometry.type || !geometry.coordinates) {
+          // Maneja el error
+          return;
+        }
+        const geojson = {
+          type: "Feature",
+          geometry: geometry,
+          properties: {}
+        };
+        dataToSend.append('aoiGeoJson', JSON.stringify(geojson));
+      } else if (formData.aoiDataFiles && formData.aoiDataFiles.length > 0) {
+        dataToSend.append('aoiDataFiles', formData.aoiDataFiles[0]);
+      } else {
+        // Maneja el error
+        return;
+      }
+      await onSubmit([dataToSend]);
     } catch (error) {
-        console.error("Error fetching data: ", error);
+      console.error("Error fetching data: ", error);
     }
     // NO pongas setLoading(false) aquí, el padre lo hará cuando termine la petición
   };
@@ -131,8 +158,20 @@ export default function HorizontalLinearStepperAOI({onSubmit, onIndexTypeChange,
       case 2:
         return (
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <ParcelDropdown onSelect={parcel => {
+              setFormData(f => ({
+                ...f,
+                selectedParcel: parcel,
+                aoiDataFiles: []
+              }));
+            }} />
+            <Typography variant="body2" sx={{ my: 1, color: '#888' }}>O sube un archivo ZIP:</Typography>
             <DropzoneArea
-              onChange={(files) => handleFileChange('aoiDataFiles', files)}
+              onChange={files => setFormData(f => ({
+                ...f,
+                aoiDataFiles: files,
+                selectedParcel: null
+              }))}
               acceptedFiles={['.zip']}
               dropzoneText="Área"
               maxFileSize={5000000}

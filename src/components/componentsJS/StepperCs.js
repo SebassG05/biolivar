@@ -75,7 +75,7 @@ export default function HorizontalLinearStepperCS({onSubmit}) {
         return (
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
             <TextField
-              label="Start Date"
+              label="Fecha Inicio"
               type="date"
               name="startDate"
               value={formData.startDate}
@@ -84,7 +84,7 @@ export default function HorizontalLinearStepperCS({onSubmit}) {
               sx={{ margin: 1 }}
             />
             <TextField
-              label="End Date"
+              label="Fecha Fin"
               type="date"
               name="endDate"
               value={formData.endDate}

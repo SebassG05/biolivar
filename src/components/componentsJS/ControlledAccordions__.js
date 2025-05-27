@@ -261,7 +261,7 @@ export default function ControlledAccordions({onSubmit}) {
           <Grid container spacing={2}>
             <Grid item xs={12} sm={10}>
               <TextField
-                label="Start Date"
+                label="Fecha Inicio"
                 type="date"
                 name="startDate"
                 value={formData.startDate}
@@ -272,7 +272,7 @@ export default function ControlledAccordions({onSubmit}) {
                 }}
               />
               <TextField
-                label="End Date"
+                label="Fecha Fin"
                 type="date"
                 name="endDate"
                 value={formData.endDate}

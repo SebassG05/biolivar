@@ -189,7 +189,7 @@ export default function HorizontalLinearStepperData({ onSubmit }) {
       {activeStep === 0 && (
         <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', mb: 2, mt: 2 }}>
           <TextField
-            label="Start Date"
+            label="Fecha Inicio"
             type="date"
             name="startDate"
             value={startDate}
@@ -199,7 +199,7 @@ export default function HorizontalLinearStepperData({ onSubmit }) {
             inputProps={{ style: { textAlign: 'center' } }}
           />
           <TextField
-            label="End Date"
+            label="Fecha Fin"
             type="date"
             name="endDate"
             value={endDate}

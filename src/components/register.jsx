@@ -276,7 +276,7 @@ class Register extends React.Component {
                                         padding: '10px 0',
                                     }}
                                 >
-                                    Login
+                                    Inicio de Sesión
                                 </Button>
                                 <Button
                                     onClick={() => this.toggleMode('register')}
@@ -299,7 +299,7 @@ class Register extends React.Component {
                                         padding: '10px 0',
                                     }}
                                 >
-                                    Register
+                                    Registro
                                 </Button>
                             </div>
                         )}
@@ -308,7 +308,7 @@ class Register extends React.Component {
                             <>
                                 <TextField
                                     name="username"
-                                    label="Username"
+                                    label="Usuario"
                                     value={this.state.username}
                                     fullWidth
                                     margin="dense"
@@ -317,7 +317,7 @@ class Register extends React.Component {
                                 />
                                 <TextField
                                     name="email"
-                                    label="Email"
+                                    label="Correo Electrónico"
                                     value={this.state.email}
                                     fullWidth
                                     margin="dense"
@@ -326,7 +326,7 @@ class Register extends React.Component {
                                 />
                                 <TextField
                                     name="password"
-                                    label="Password"
+                                    label="Contraseña"
                                     type="password"
                                     value={this.state.password}
                                     fullWidth
@@ -359,7 +359,7 @@ class Register extends React.Component {
                             <>
                                 <TextField
                                     name="username"
-                                    label="Username"
+                                    label="usuario"
                                     value={this.state.username}
                                     fullWidth
                                     margin="dense"
@@ -368,7 +368,7 @@ class Register extends React.Component {
                                 />
                                 <TextField
                                     name="password"
-                                    label="Password"
+                                    label="contraseña"
                                     type="password"
                                     value={this.state.password}
                                     fullWidth
@@ -385,7 +385,7 @@ class Register extends React.Component {
                                             fontSize: '14px',
                                         }}
                                     >
-                                        Forgot Password?
+                                        Has olvidado tu contraseña?
                                     </span>
                                 </div>
                                 <Button
@@ -405,7 +405,7 @@ class Register extends React.Component {
                                     {this.state.isSubmitting ? (
                                         <CircularProgress size={24} />
                                     ) : (
-                                        'Login'
+                                        'Iniciar Sesión'
                                     )}
                                 </Button>
                             </>
@@ -413,7 +413,7 @@ class Register extends React.Component {
                             <>
                                 <TextField
                                     name="username"
-                                    label="Username or Email"
+                                    label="Usuario o Email"
                                     value={this.state.username}
                                     fullWidth
                                     margin="dense"
@@ -422,7 +422,7 @@ class Register extends React.Component {
                                 />
                                 <TextField
                                     name="newPassword"
-                                    label="New Password"
+                                    label="Nueva Contraseña"
                                     type="password"
                                     value={this.state.newPassword}
                                     fullWidth
@@ -432,7 +432,7 @@ class Register extends React.Component {
                                 />
                                 <TextField
                                     name="confirmNewPassword"
-                                    label="Confirm New Password"
+                                    label="Confirmar Nueva Contraseña"
                                     type="password"
                                     value={this.state.confirmNewPassword}
                                     fullWidth
@@ -457,7 +457,7 @@ class Register extends React.Component {
                                     {this.state.isSubmitting ? (
                                         <CircularProgress size={24} />
                                     ) : (
-                                        'Reset Password'
+                                        'Actualizar Contraseña'
                                     )}
                                 </Button>
                                 <div style={{ marginTop: 15, textAlign: 'center' }}>
@@ -469,7 +469,7 @@ class Register extends React.Component {
                                             fontSize: '14px',
                                         }}
                                     >
-                                        Back to Login
+                                        Volver al inicio de sesión
                                     </span>
                                 </div>
                             </>
@@ -480,7 +480,7 @@ class Register extends React.Component {
                                 {this.state.mode === 'login' && (
                                     <div style={{ marginTop: 20, textAlign: 'center' }}>
                                         <span style={{ fontSize: '14px', color: '#888' }}>
-                                            Don't have an account?{' '}
+                                            No tienes una cuenta?{' '}
                                             <span
                                                 onClick={() => this.toggleMode('register')}
                                                 style={{
@@ -489,7 +489,7 @@ class Register extends React.Component {
                                                     fontWeight: 'bold',
                                                 }}
                                             >
-                                                Sign up
+                                                Regístrate
                                             </span>
                                         </span>
                                     </div>

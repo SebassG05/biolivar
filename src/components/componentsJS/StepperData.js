@@ -14,9 +14,9 @@ import emitter from '@utils/events.utils';
 import ParcelDropdown from '../controllers/ParcelDropdown';
 
 const steps = [
-  'Date Selection',
-  'Choose Index Type',
-  'Upload Data',
+  'Selección de Fechas',
+  'Selección de Tipo de Índice',
+  'Subir Datos',
 ];
 
 const indexOptions = [

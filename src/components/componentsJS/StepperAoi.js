@@ -11,7 +11,7 @@ import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import { DropzoneArea } from 'material-ui-dropzone';
 
-const steps = ['Date Selection', 'Choose Index Type', 'Upload Data'];
+const steps = ['Selección de fechas', 'Selección de tipo de índice', 'Subir datos'];
 
 export default function HorizontalLinearStepperAOI({onSubmit, onIndexTypeChange, onStepChange, loading, setLoading, startDate, endDate, onDateChange}) {
   const [activeStep, setActiveStep] = useState(0);

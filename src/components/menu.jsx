@@ -61,7 +61,7 @@ class Menu extends React.Component {
             },
             
             {
-                name: 'Collect indexes',
+                name: 'Cálculo índices especrales',
                 icon: <Icon>satellite</Icon>,
                 color: "grey",
                 callback: () => {
@@ -72,7 +72,7 @@ class Menu extends React.Component {
             },
             {
 
-                name: 'Spatiotemporal Analysis',
+                name: 'Análisis Espacio-Temporal',
 
                 icon: <Icon>satellite_alt</Icon>,
 
@@ -92,7 +92,7 @@ class Menu extends React.Component {
 
             {
 
-                name: 'Vegetation Index Change Inspector',
+                name: 'Camino de Vegetación',
 
                 icon: <Icon>image_search</Icon>,
 
@@ -110,7 +110,7 @@ class Menu extends React.Component {
 
             },
             {
-                name: 'Biodiversity Indexes',
+                name: 'Índices de biodiversidad',
                 icon: <Icon>pets</Icon>,
                 color: "purple darken-1",
                 callback: () => {
@@ -141,7 +141,7 @@ class Menu extends React.Component {
 
             },   
             {
-                name: 'Models',
+                name: 'Modelos',
                 icon: <Icon>psychology</Icon>,
                 color: "purple darken-1",
                 callback: () => {

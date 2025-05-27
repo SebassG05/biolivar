@@ -233,7 +233,7 @@ export default function ControlledAccordions({onSubmit}) {
           aria-controls="panel2bh-content"
           id="panel2bh-header"
         >
-          <Typography className={classes.heading}>Upload Files</Typography>
+          <Typography className={classes.heading}>Subir Archivos</Typography>
         </AccordionSummary>
         <AccordionDetails>
           
@@ -255,7 +255,7 @@ export default function ControlledAccordions({onSubmit}) {
           aria-controls="panel3bh-content"
           id="panel3bh-header"
         >
-          <Typography className={classes.heading}>Dates</Typography>
+          <Typography className={classes.heading}>Selección de Fechas</Typography>
         </AccordionSummary>
         <AccordionDetails>
           <Grid container spacing={2}>
@@ -294,11 +294,11 @@ export default function ControlledAccordions({onSubmit}) {
 
 
       </div>
-      <Button onClick={handleSubmit} color="primary" variant="contained">Submit Data</Button>
+      <Button onClick={handleSubmit} color="primary" variant="contained">Enviar Datos</Button>
       <Backdrop className={classes.backdrop} open={loading}>
         <CircularProgress color="inherit" />
         <Typography variant="h6" className={classes.progressText}>
-          Loading... {timer}s
+          Cargando... {timer}s
         </Typography>
       </Backdrop>
     </div>

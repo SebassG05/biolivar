@@ -65,7 +65,7 @@ function DataDisplay({ data, onBack, onSaveShape, saving }) {
     return (
         <div>
             <Button onClick={onBack} variant="outlined" style={{ margin: '20px' }}>
-                Back to Search
+                Volver a buscar
             </Button>
             <Button onClick={handleSaveClick} variant="contained" color="success" style={{ margin: '20px' }} disabled={saving || savingState}>
                 {(saving || savingState) ? 'Guardando...' : 'Guardar Parcela'}

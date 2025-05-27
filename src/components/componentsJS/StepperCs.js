@@ -12,7 +12,7 @@ import MenuItem from '@mui/material/MenuItem';
 import { Card, CardContent } from '@mui/material';
 import { Backdrop } from '@material-ui/core';
 
-const steps = ['Date Selection', 'Choose Index Type', 'Upload Data'];
+const steps = ['Selección de Fechas', 'Selección de Tipo de Índice', 'Subir Datos'];
 
 export default function HorizontalLinearStepperCS({onSubmit}) {
   const [activeStep, setActiveStep] = useState(0);

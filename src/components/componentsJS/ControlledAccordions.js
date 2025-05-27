@@ -347,7 +347,7 @@ export default function ControlledAccordions({onSubmit}) {
           aria-controls="panel2bh-content"
           id="panel2bh-header"
         >
-          <Typography className={classes.heading}>Upload Files</Typography>
+          <Typography className={classes.heading}>Subir Archivos</Typography>
         </AccordionSummary>
         <AccordionDetails>
         <DropzoneArea

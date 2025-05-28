@@ -54,10 +54,14 @@ class BushEncroacher extends React.Component {
         selectedAsset: '', // Aquí guardamos el asset seleccionado por el usuario
         speciesOptions: [], // Lista de especies para el primer selector
         filteredAssets: [], // Lista de assets filtrados según la especie seleccionada
+        wmsLayers: [], // <--- NUEVO
+        showWMSLayers: false,
     }
 
     componentDidMount() {
         this.fetchAssets();  // Cargar los assets de GEE
+
+        this.fetchWMSLayers();
 
         this.openBushEncroacherControllerListener = emitter.addListener('openBushEncoracherController', () => {
             this.setState({ open: true });
@@ -82,6 +86,28 @@ class BushEncroacher extends React.Component {
             console.error('Error fetching assets:', error);
         }
     };
+
+    fetchWMSLayers = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('http://localhost:5000/api/wms-layers/listar', {
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            });
+            const data = await response.json();
+            console.log('WMS layers response:', data); // <-- DEBUG
+            if (data.success) {
+                this.setState({ wmsLayers: data.layers });
+            } else {
+                this.setState({ wmsLayers: [] });
+            }
+        } catch (error) {
+            console.error('Error fetching WMS layers:', error);
+            this.setState({ wmsLayers: [] });
+        }
+    };
+
 
         // Función para cortar el nombre del asset después del "/0" o devolver el nombre si no lo tiene
         splitAssetName = (assetPath) => {
@@ -113,12 +139,22 @@ class BushEncroacher extends React.Component {
         return Array.from(speciesSet); // Convertir el Set en una lista
     };
 
-    handleSpeciesChange = (event) => {
+        handleSpeciesChange = (event) => {
         const selectedSpecies = event.target.value;
-        this.setState({ selectedSpecies: selectedSpecies });
+        if (selectedSpecies === 'wms_layers') {
+            this.setState({ showWMSLayers: true, selectedSpecies });
+        } else {
+            this.setState({ showWMSLayers: false, selectedSpecies });
+            this.filterAssetsBySpecies(selectedSpecies);
+        }
+    };
 
-        // Filtrar los assets basados en la especie seleccionada
-        this.filterAssetsBySpecies(selectedSpecies);
+        handleWMSLayerChange = (event) => {
+        const selectedUrl = event.target.value;
+        this.setState({ selectedAsset: selectedUrl });
+        emitter.emit('moveURL', { type: 'wms', url: selectedUrl }); // Emitir objeto con tipo WMS
+        emitter.emit('closeAllController');
+        emitter.emit('openLayerController');
     };
 
     filterAssetsBySpecies = (species) => {
@@ -189,18 +225,26 @@ class BushEncroacher extends React.Component {
     }
 
     render() {
+        // DEBUG: Mostrar el estado de wmsLayers
+        if (this.state.showWMSLayers) {
+            console.log('WMS Layers:', this.state.wmsLayers);
+        }
         return (
             <MuiThemeProvider theme={GlobalStyles}>
                 <Slide direction="left" in={this.state.open}>
                     <Card style={styles.root}>
                         <CardContent style={styles.header}>
-                            <Typography gutterBottom style={{ fontFamily: 'Lato, Arial, sans-serif', color:'white', fontWeight:'3' }} variant="h5" component="h2">Visualizador de capas</Typography>
-                            <Typography variant="body2" color="textSecondary">Visualiza diferentes capas</Typography>
+                            <Typography gutterBottom style={{ fontFamily: 'Lato, Arial, sans-serif', color:'white', fontWeight:'3' }} variant="h5" component="h2">
+                                Visualizador de capas
+                            </Typography>
+                            <Typography variant="body2" color="textSecondary">
+                                Visualiza diferentes capas
+                            </Typography>
                             <IconButton style={styles.closeBtn} aria-label="Close" onClick={() => this.setState({ open: false })}>
                                 <Icon fontSize="inherit">chevron_right</Icon>
                             </IconButton>
                         </CardContent>
-
+    
                         <CardContent style={styles.content}>
                             <FormControl style={styles.select}>
                                 <InputLabel>Tipo</InputLabel>
@@ -209,22 +253,32 @@ class BushEncroacher extends React.Component {
                                     onChange={this.handleSpeciesChange}
                                 >
                                     {this.state.speciesOptions.map(species => (
-                                        <MenuItem key={this.splitAssetName(species)} value={this.splitAssetName(species)}>{this.splitAssetName(species).replace("_"," ")}</MenuItem>
+                                        <MenuItem key={this.splitAssetName(species)} value={this.splitAssetName(species)}>
+                                            {this.splitAssetName(species).replace("_"," ")}
+                                        </MenuItem>
                                     ))}
+                                    <MenuItem key="wms_layers" value="wms_layers">Capas WMS</MenuItem>
                                 </Select>
                             </FormControl>
-
+    
                             <FormControl style={styles.select} disabled={!this.state.selectedSpecies}>
                                 <InputLabel>Capa a visualiz.</InputLabel>
                                 <Select
                                     value={this.state.selectedAsset}
-                                    onChange={this.handleAssetChange}
+                                    onChange={this.state.showWMSLayers ? this.handleWMSLayerChange : this.handleAssetChange}
                                 >
-                                    {this.state.filteredAssets.map(asset => (
-                                        <MenuItem key={asset.id} value={{ id: asset.id, type: asset.type }}>
-                                            {this.parseLayerName(this.splitAssetName(asset.id)).replace("_", " ")}
-                                        </MenuItem>
-                                    ))}
+                                    {this.state.showWMSLayers
+                                        ? this.state.wmsLayers.map(layer => (
+                                            <MenuItem key={layer._id} value={layer.url}>
+                                                {layer.name}
+                                            </MenuItem>
+                                        ))
+                                        : this.state.filteredAssets.map(asset => (
+                                            <MenuItem key={asset.id} value={{ id: asset.id, type: asset.type }}>
+                                                {this.parseLayerName(this.splitAssetName(asset.id)).replace("_", " ")}
+                                            </MenuItem>
+                                        ))
+                                    }
                                 </Select>
                             </FormControl>
                         </CardContent>

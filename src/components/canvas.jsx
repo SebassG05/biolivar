@@ -4,6 +4,7 @@ import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
 import MapboxTraffic from '@mapbox/mapbox-gl-traffic';
 import mapboxgl from 'mapbox-gl';
 import React from 'react';
+import xml2js from 'xml2js'; // Añadir para parsear XML
 
 import geocoder from '@plugins/geocoder.plugin';
 import marker from '@plugins/marker.plugin';
@@ -444,48 +445,154 @@ class Canvas extends React.Component {
         return lastPart; // Devolver la última parte procesada
     };
 
-    handleURLMoved = (movedURL) => {
+    // Comprueba si la URL tiene el parámetro LAYERS
+    hasLayersParam = (url) => {
+        return /[?&]LAYERS=/i.test(url);
+    };
+
+    // Obtiene las capas disponibles de GetCapabilities
+    fetchWMSLayersFromGetCapabilities = async (baseUrl) => {
+        let url = baseUrl;
+        if (!url.endsWith('?') && !url.endsWith('&')) {
+            url += url.includes('?') ? '&' : '?';
+        }
+        url += 'SERVICE=WMS&REQUEST=GetCapabilities';
+        try {
+            const response = await fetch(url);
+            const text = await response.text();
+            const parser = new xml2js.Parser();
+            const result = await parser.parseStringPromise(text);
+            // Busca las capas en el XML (WMS 1.1.1 y 1.3.0)
+            let layers = [];
+            try {
+                // WMS 1.3.0
+                var capability = result && result.WMS_Capabilities && result.WMS_Capabilities.Capability && result.WMS_Capabilities.Capability[0];
+                if (capability && capability.Layer) {
+                    layers = this.extractLayerNames(capability.Layer);
+                }
+            } catch (e) {}
+            if (layers.length === 0) {
+                try {
+                    // WMS 1.1.1
+                    var capability2 = result && result.WMT_MS_Capabilities && result.WMT_MS_Capabilities.Capability && result.WMT_MS_Capabilities.Capability[0];
+                    if (capability2 && capability2.Layer) {
+                        layers = this.extractLayerNames(capability2.Layer);
+                    }
+                } catch (e) {}
+            }
+            return layers;
+        } catch (e) {
+            console.error('Error al obtener GetCapabilities:', e);
+            return [];
+        }
+    };
+
+    // Extrae los nombres de capa de la estructura XML
+    extractLayerNames = (layerArray) => {
+        let names = [];
+        for (const layer of layerArray) {
+            if (layer.Name && layer.Name[0]) {
+                names.push(layer.Name[0]);
+            }
+            if (layer.Layer) {
+                names = names.concat(this.extractLayerNames(layer.Layer));
+            }
+        }
+        return names;
+    };
+
+    // Prompt simple para seleccionar capa (puedes mejorar con un modal)
+    async promptLayerSelection(layers) {
+        const layerList = layers.map((l, i) => `${i + 1}: ${l}`).join('\n');
+        const choice = window.prompt(`Selecciona el número de la capa WMS a cargar:\n${layerList}`);
+        const idx = parseInt(choice, 10) - 1;
+        if (idx >= 0 && idx < layers.length) {
+            return layers[idx];
+        }
+        return null;
+    }
+
+    // Modifica handleURLMoved para automatizar selección de LAYERS
+    handleURLMoved = async (movedURL) => {
         console.log('Received moved data:', movedURL);
-        // Extract min and max values (assuming they are at index 4 and 5)
+    
+        if (typeof movedURL === 'object' && movedURL.type === 'wms' && movedURL.url) {
+            let wmsUrl = movedURL.url;
+            // Si falta LAYERS, obtener GetCapabilities y pedir selección
+            if (!this.hasLayersParam(wmsUrl)) {
+                const layers = await this.fetchWMSLayersFromGetCapabilities(wmsUrl);
+                if (!layers.length) {
+                    emitter.emit('showSnackbar', 'error', 'No se encontraron capas WMS en GetCapabilities');
+                    return;
+                }
+                const selectedLayer = await this.promptLayerSelection(layers);
+                if (!selectedLayer) {
+                    emitter.emit('showSnackbar', 'error', 'No se seleccionó ninguna capa WMS');
+                    return;
+                }
+                // Añade el parámetro LAYERS
+                wmsUrl += (wmsUrl.includes('?') ? (wmsUrl.endsWith('?') || wmsUrl.endsWith('&') ? '' : '&') : '?') + 'LAYERS=' + encodeURIComponent(selectedLayer) + '&';
+            }
+            // Asegura que la URL termina en '?' o '&'
+            if (!wmsUrl.endsWith('?') && !wmsUrl.endsWith('&')) {
+                wmsUrl += wmsUrl.includes('?') ? '&' : '?';
+            }
+            // Elimina la capa WMS anterior si existe
+            if (this.state.map.getLayer('wms-active')) {
+                this.state.map.removeLayer('wms-active');
+            }
+            if (this.state.map.getSource('wms-active')) {
+                this.state.map.removeSource('wms-active');
+            }
+            // Añade la nueva capa WMS como raster
+            this.state.map.addSource('wms-active', {
+                type: 'raster',
+                tiles: [
+                    `${wmsUrl}SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&SRS=EPSG:3857&STYLES=&FORMAT=image/png&TRANSPARENT=true&WIDTH=256&HEIGHT=256&BBOX={bbox-epsg-3857}`
+                ],
+                tileSize: 256
+            });
+            this.state.map.addLayer({
+                id: 'wms-active',
+                type: 'raster',
+                source: 'wms-active',
+                paint: { 'raster-opacity': 0.8 }
+            });
+            emitter.emit('showSnackbar', 'success', `Capa WMS cargada`);
+            return;
+        }
+        // ...existing code para assets/GeoJSON...
         const mapUrl = movedURL[0];
         const layerId = movedURL[2];
         const polygon = movedURL[3];
-        const minValue = movedURL[4]; // Extract min value
-        const maxValue = movedURL[5]; // Extract max value
-
+        const minValue = movedURL[4];
+        const maxValue = movedURL[5];
         this.setState({ url: mapUrl });
         console.log(layerId);
-        
-        // Emit the newLayer event including min and max values
         emitter.emit('newLayer', {
-            id: layerId,          // Layer ID
-            url: mapUrl,          // Map URL
+            id: layerId,
+            url: mapUrl,
             visible: true,
             transparency: 100,
-            min: minValue,        // Pass min value
-            max: maxValue         // Pass max value
+            min: minValue,
+            max: maxValue
         });
-        
         console.log(movedURL)
         emitter.emit('showSnackbar', 'success', `The layer '${this.splitAssetName(layerId)}' has been loaded`);
-        
-        // Add layer to the map
         this.state.map.addLayer({
             'id': layerId,
             'type': 'raster',
             'source': {
                 'type': 'raster',
                 'tiles': [
-                    mapUrl // Use mapUrl directly
+                    mapUrl
                 ],
                 'tileSize': 256
             },
             'paint': {
-                'raster-opacity': 0.8  // Layer opacity
+                'raster-opacity': 0.8
             }
         });
-        
-        // Fly to geometry if available
         if (polygon && polygon.type === 'Polygon') {
             this.flyToGeometry(this.state.map, polygon)
         } else {
@@ -493,6 +600,7 @@ class Canvas extends React.Component {
         }
         console.log(this.state.url);
     };
+    // ...existing code...
     
     componentWillUnmount() {
         emitter.removeListener(this.setMapStyleListener);

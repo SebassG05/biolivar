@@ -110,18 +110,6 @@ class Menu extends React.Component {
 
             },
             {
-                name: 'Índices de biodiversidad',
-                icon: <Icon>pets</Icon>,
-                color: "purple darken-1",
-                callback: () => {
-                    emitter.emit('closeAllController');
-                    emitter.emit('openBiodivController');
-                    this.handleClose();
-                }
-            },
-
-
-            {
 
                 name: 'Modelo Rusle',
 
@@ -180,6 +168,22 @@ class Menu extends React.Component {
 
                 }
 
+            },
+
+            {
+                name: 'Soil Organic Carbon Predictor',
+                icon: <Icon>science</Icon>,
+                color: "#795548", // brown
+
+                callback: () => {
+
+                    emitter.emit('closeAllController');
+
+                    emitter.emit('openSocController');
+
+                    this.handleClose();
+
+                }
             },
 
             {

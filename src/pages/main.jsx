@@ -24,6 +24,7 @@ import SpatioTemporalAnalysisController from '../components/controllers/spatioTe
 import BandController from '../components/controllers/bandContoller';
 import BiodiversityController from '../components/controllers/biodiversityController';
 import Register from '@components/register'; 
+import SocController from '../components/controllers/socController';
 
 class Main extends React.Component {
     state = {
@@ -99,6 +100,7 @@ class Main extends React.Component {
                     <DataController />
                     <ImportController />
                     <RusleController />
+                    <SocController />
                     <Popup />
                     <Canvas />
                 </React.Fragment>

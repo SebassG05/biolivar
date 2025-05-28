@@ -1758,6 +1758,291 @@ def get_spatiotemporal():
     except Exception as e:
         print(str(e))
         return jsonify({"error": str(e)}), 500
+    
+@app.route('/api/soil_organic_prediction', methods=['POST'])
+def get_image():
+    try:
+        if 'soilDataFiles' not in request.files or 'aoiDataFiles' not in request.files:
+            return jsonify({"error": "No file part"}), 400
+
+        soil_file = request.files['soilDataFiles']
+        aoi_file = request.files['aoiDataFiles']
+
+        if soil_file.filename == '' or aoi_file.filename == '':
+            return jsonify({"error": "No selected file"}), 400
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            soil_filepath = os.path.join(temp_dir, secure_filename(soil_file.filename))
+            aoi_filepath = os.path.join(temp_dir, secure_filename(aoi_file.filename))
+
+            soil_file.save(soil_filepath)
+            aoi_file.save(aoi_filepath)
+
+            # Suponiendo que el shapefile se extrae en el directorio temporal
+            
+            data_scale = 20
+            
+            start_date = request.form.get('startDate')
+            end_date = request.form.get('endDate')
+            sentinel1 = request.form.get('sentinel1')
+            sentinel2 = request.form.get('sentinel2')
+            landsat = request.form.get('landsat')
+            vegetationIndexes = request.form.get('vegetationIndexes')
+            brightnessIndexes = request.form.get('brightnessIndexes')
+            moistureIndexes = request.form.get('moistureIndexes')
+            numberOfTrees = request.form.get('numberOfTrees')
+            seed = request.form.get('seed')
+            bagFraction = request.form.get('bagFraction')
+            rsquare = request.form.get('rsquare')
+            rmse = request.form.get('rmse')
+            mse = request.form.get('mse')
+            mae = request.form.get('mae')
+            rpiq = request.form.get('rpiq')
+
+
+            
+            gdf = gpd.read_file(soil_filepath)
+            geojson_dict = gdf.__geo_interface__
+            table = ee.FeatureCollection(geojson_dict['features'])
+
+            gdf = gpd.read_file(aoi_filepath)
+            geojson_dict = gdf.__geo_interface__
+            bbox = ee.FeatureCollection(geojson_dict['features'])
+            
+            coleccion_sentinel = ee.ImageCollection("COPERNICUS/S2_HARMONIZED")\
+            .filterDate(start_date, end_date)\
+            .filterBounds(bbox)\
+            .filterMetadata('CLOUDY_PIXEL_PERCENTAGE', 'less_than', 10)
+            
+            mosaico = coleccion_sentinel.median().clip(bbox)
+            
+            mosaico_bands = mosaico.select(['B4', 'B3', 'B2', 'B11', 'B1', 'B12', 'B8', 'B5'])
+            
+            def calculate_ndvi(image):
+                return image.normalizedDifference(['B8', 'B4']).rename('NDVI')
+
+            def calculate_evi(image):
+                return image.expression(
+                    '2.5 * ((NIR - RED) / (NIR + 6 * RED - 7.5 * BLUE + 1))', {
+                        'NIR': image.select('B8'),
+                        'RED': image.select('B4'),
+                        'BLUE': image.select('B2')
+                    }).rename('EVI')
+
+
+            def calculate_nbr(image):
+                nbr = image.expression(
+                    '(NIR - SWIR2) / (NIR + SWIR2)', 
+                    {
+                        'NIR': image.select('B8'),  
+                        'SWIR2': image.select('B12')
+                    }).rename('NBR')
+                return nbr
+
+            def calculate_nbr2(image):
+                nbr2 = image.expression(
+                    '(SWIR - SWIR2) / (SWIR + SWIR2)', 
+                    {
+                        'SWIR': image.select('B11'),  
+                        'SWIR2': image.select('B12')
+                    }).rename('NBR2')
+                return nbr2
+
+            #Moisture
+            def calculate_ndmi(image):
+                ndmi = image.expression(
+                    '(NIR - SWIR) / (NIR + SWIR)', 
+                    {
+                        'SWIR': image.select('B11'),  
+                        'NIR': image.select('B8')
+                    }).rename('NDMI')
+                return ndmi
+
+            def calculate_arvi(image):
+                arvi = image.expression(
+                    '((NIR - (2 * RED) + BLUE) / (NIR + (2 * RED) + BLUE))', 
+                    {
+                        'NIR': image.select('B8'),
+                        'BLUE': image.select('B2'), 
+                        'RED': image.select('B4')
+                    }).rename('ARVI')
+                return arvi
+
+            def calculate_sipi(image):
+                sipi = image.expression(
+                    '((NIR - BLUE) / (NIR - RED))', 
+                    {
+                        'NIR': image.select('B8'),
+                        'BLUE': image.select('B2'), 
+                        'RED': image.select('B4')
+                    }).rename('SIPI')
+                return sipi
+
+
+            def calculate_rgr(image):
+                rgr = image.expression(
+                    'RED / GREEN', 
+                    {
+                        'RED': image.select('B4'),  
+                        'GREEN': image.select('B3')
+                    }).rename('RGR')
+                return rgr
+
+            
+            def calculate_gli(image):
+                gli = image.expression(
+                    '(((GREEN - RED) + (GREEN - BLUE)) / ((2 * GREEN) + RED + BLUE))', 
+                    {
+                        'GREEN': image.select('B3'),  
+                        'RED': image.select('B4'),
+                        'BLUE': image.select('B2')
+                    }).rename('GLI')
+                return gli
+
+            #Moisture
+            def calculate_msi(image):
+                msi = image.expression(
+                    'NIR / SWIR', 
+                    {
+                        'NIR': image.select('B8'),
+                        'SWIR': image.select('B11')
+                    }).rename('MSI')
+                return msi
+
+            #Brillo
+            def calculate_soci(image):
+                soci = image.expression(
+                    'BLUE / (GREEN * RED)', 
+                    {
+                        'BLUE': image.select('B2'),
+                        'GREEN': image.select('B3'),
+                        'RED': image.select('B4')
+                    }).rename('SOCI')
+                return soci
+
+            #Brillo
+            def calculate_bi(image):
+                bi = image.expression(
+                    'sqrt(((RED * RED) / (GREEN * GREEN)) / 2)', 
+                    {
+                        'GREEN': image.select('B3'),
+                        'RED': image.select('B4')
+                    }).rename('BI')
+                return bi
+
+            def calculate_savi(image):
+                savi = image.expression(
+                    '((NIR - RED) / (NIR + RED + L)) * (1 + L)', 
+                    {
+                        'L': 0.5,  # Cover of vegetation 0-1
+                        'NIR': image.select('B8'),
+                        'RED': image.select('B4')
+                    }).rename('SAVI')
+                return savi
+
+            def calculate_gci(image):
+                gci = image.expression(
+                    '((NIR) / (GREEN)) - 1', 
+                    {
+                        'NIR': image.select('B8'),  
+                        'GREEN': image.select('B3')
+                    }).rename('GCI')
+                return gci
+
+            def calculate_gndvi(image):
+                gndvi = image.expression(
+                    '(NIR - GREEN) / (NIR + GREEN)', 
+                    {
+                        'NIR': image.select('B8'),  
+                        'GREEN': image.select('B3')
+                    }).rename('GNDVI')
+                return gndvi
+
+            def add_indices(image):
+                indices = [
+                    calculate_nbr(image), calculate_nbr2(image), calculate_ndmi(image),
+                    calculate_arvi(image), calculate_sipi(image), calculate_rgr(image),
+                    calculate_gli(image), calculate_msi(image), calculate_soci(image),
+                    calculate_bi(image), calculate_savi(image), calculate_gci(image),
+                    calculate_gndvi(image), calculate_ndvi(image), calculate_evi(image)
+                ]
+                return image.addBands(indices)
+
+
+            composite_indices = add_indices(mosaico_bands)
+            
+            precipitation_1d = ee.ImageCollection('UCSB-CHG/CHIRPS/DAILY').select('precipitation')
+            LST= ee.ImageCollection('MODIS/061/MOD11A2').select('LST_Day_1km')
+            surface_radiance = ee.ImageCollection('MODIS/061/MCD18A1').select('DSR')
+            npp = ee.ImageCollection('MODIS/061/MOD17A3HGF').select('Npp')
+            eti = ee.ImageCollection('FAO/WAPOR/2/L1_AETI_D').select('L1_AETI_D')
+            lulc = ee.Image('COPERNICUS/Landcover/100m/Proba-V-C3/Global/2019').select('discrete_classification')
+            
+            def prec(image):
+                x = image.select("precipitation")
+                return x.rename('Precipitation')
+
+            def statistics(image_collection, bbox):
+                first_image = image_collection.first()
+                band_name = first_image.bandNames().get(0).getInfo()
+                mean = image_collection.mean().rename(band_name + '_mean')
+                mode = image_collection.mode().rename(band_name + '_mode')
+                min_ = image_collection.min().rename(band_name + '_min')
+                max_ = image_collection.max().rename(band_name + '_max')
+                median = image_collection.median().rename(band_name + '_median')
+                stats = ee.Image.cat([mean, mode, min_, max_, median]).clip(bbox)
+                return stats
+
+            temperature_stats = statistics(LST, bbox)
+            precipitation_stats = statistics(precipitation_1d.map(prec), bbox)
+            
+            lulc_clipped = lulc.clip(bbox)
+            stack = None
+            if vegetationIndexes == 'true': 
+                stack = composite_indices.select("NDVI", "EVI",
+                "SAVI", "SIPI",
+                "NBR",
+                "NBR2",
+                "RGR",
+                "ARVI", "GLI", "GCI",
+                "GNDVI","B8", "B11" )
+            if brightnessIndexes == 'true':
+                stack = composite_indices.select(
+                "SOCI", "BI")
+            if moistureIndexes == "true":
+                stack = composite_indices.select("NDMI", "MSI")
+                    
+            # Sampling and Classifier
+            training_samples = stack.sampleRegions(
+                collection=table,
+                properties=['SOC'],
+                scale=data_scale,
+                geometries=True
+            )
+
+	
+            classifier_rf = ee.Classifier.smileRandomForest(numberOfTrees=int(numberOfTrees), bagFraction=float(bagFraction), seed=int(seed)).setOutputMode('REGRESSION').train(
+                features=training_samples,
+                classProperty='SOC',
+                inputProperties=stack.bandNames()
+            )
+            
+            predicted_soil_carbon = stack.classify(classifier_rf).rename("Predicted_SOC")
+            visualization_parameters = {
+                'min': 0,
+                'max': 6,
+                'palette': ['#FFFFE5', '#FEE391', '#FEC44F', '#EC7014', '#8C2D04']
+            }
+            map_id = predicted_soil_carbon.getMapId(visualization_parameters)
+            
+            return jsonify({
+                "success": True,
+                "output": [map_id['tile_fetcher'].url_format, visualization_parameters, 'DSM_Result']
+            }), 200
+
+    except Exception as e:
+        print(str(e))
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(port=500)

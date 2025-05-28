@@ -427,9 +427,9 @@ def vegetation_index_change_inspector():
             return srCollection
 
         def getCombinedSRcollection(startYear, endYear, startDay, endDay, aoi):
-            lt5 = getSRcollection(startYear, startDay, endDay, 'LT05', aoi)
-            le7 = getSRcollection(startYear, startDay, endDay, 'LE07', aoi)
-            lc8 = getSRcollection(startYear, startDay, endDay, 'LC08', aoi)
+            lt5 = getSRcollection(startYear, startYear, startDay, endDay, 'LT05', aoi)
+            le7 = getSRcollection(startYear, startYear, startDay, endDay, 'LE07', aoi)
+            lc8 = getSRcollection(startYear, startYear, startDay, endDay, 'LC08', aoi)
             return ee.ImageCollection(lt5.merge(le7).merge(lc8))
         
         def add_indices(image):
@@ -1468,7 +1468,9 @@ def spatiotemporal_analysis_v2():
                     d = ee.Date(myimg.get('system:time_start'))
                     y = d.get('year').toInt()
                     m = d.get('month').toInt()
+
                     LSTm = lstCollection.filter(ee.Filter.calendarRange(y, y, 'year')).filter(ee.Filter.calendarRange(m, m, 'month')).mean()
+
                     return LSTm.copyProperties(myimg, ['system:time_start'])
                 monthlyLSTCollection = ee.ImageCollection(lstCollection.map(myLst))
                 filteredFeaturesLST = monthlyLSTCollection.filterDate(start, end).map(lambda image: ee.Feature(None, {
@@ -1478,6 +1480,7 @@ def spatiotemporal_analysis_v2():
                 features = filteredFeaturesLST.getInfo()['features']
                 data = [f['properties'] for f in features]
                 results['LST'] = data
+
             # --- Percent Tree Cover ---
             if 'Percent_Tree_Cover' in indices:
                 cover = ee.ImageCollection('MODIS/006/MOD44B').select('Percent_Tree_Cover')
@@ -1760,7 +1763,7 @@ def get_spatiotemporal():
         return jsonify({"error": str(e)}), 500
     
 @app.route('/api/soil_organic_prediction', methods=['POST'])
-def get_image():
+def soil_organic_prediction():
     try:
         if 'soilDataFiles' not in request.files or 'aoiDataFiles' not in request.files:
             return jsonify({"error": "No file part"}), 400

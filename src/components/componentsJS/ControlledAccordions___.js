@@ -290,16 +290,37 @@ export default function ControlledAccordions({onSubmit}) {
       
       console.log(data);
       console.log("Aqi")
-      const response = await fetch('https://terrenviron.evenor-tech.com/api/soil_organic_prediction', {
+      const response = await fetch('http://localhost:500/api/soil_organic_prediction', {
          method: 'POST',
          body: data
       });
 
-      const result = await response.json();
-      if(result){
+      let result;
+      try {
+        result = await response.json();
+      } catch (e) {
+        setLoading(false);
+        window.emitter && window.emitter.emit('showSnackbar', 'error', 'Error: Respuesta inválida del servidor.');
+        return;
+      }
+
+      if (response.status === 500 || (result && result.error)) {
+        setLoading(false);
+        let msg = result && result.error ? result.error : 'Error interno del servidor (500).';
+        if (msg.toLowerCase().includes('memoria') || msg.toLowerCase().includes('memory')) {
+          msg = 'El archivo es demasiado grande o el servidor no tiene suficiente memoria para procesarlo. Intente con un archivo más pequeño.';
+        }
+        window.emitter && window.emitter.emit('showSnackbar', 'error', msg);
+        return;
+      }
+
+      if(result && result.output){
         console.log('Data sent successfully', result);
         onSubmit(result.output);
         setLoading(false);
+      } else {
+        setLoading(false);
+        window.emitter && window.emitter.emit('showSnackbar', 'error', 'Respuesta inesperada del servidor.');
       }
 
 

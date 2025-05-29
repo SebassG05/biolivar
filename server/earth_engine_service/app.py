@@ -1263,8 +1263,6 @@ def get_spatiotemporal_analysis():
                 # Aplicar la reducción y filtrar valores nulos en el servidor
                 npp8CollectionWithCarbon = npp8Collection.map(reduceToFeature).filter(ee.Filter.notNull(['Carbon']))
 
-                # Continuar con el procesamiento como antes
-
                 # Traer los datos al lado del cliente
                 features_list_Carbon = npp8CollectionWithCarbon.getInfo()['features']
                 data_Carbon = [feature['properties'] for feature in features_list_Carbon]
@@ -1719,7 +1717,9 @@ def get_spatiotemporal():
                 d = ee.Date(myimg.get('system:time_start'))
                 y = d.get('year').toInt()
                 m = d.get('month').toInt()
+
                 LSTm = lstCollection.filter(ee.Filter.calendarRange(y, y, 'year')).filter(ee.Filter.calendarRange(m, m, 'month')).mean()
+
                 return LSTm.copyProperties(myimg, ['system:time_start'])
             monthlyLSTCollection = ee.ImageCollection(lstCollection.map(myLst))
             filteredFeaturesLST = monthlyLSTCollection.filterDate(start, end).map(lambda image: ee.Feature(None, {
@@ -1781,10 +1781,7 @@ def soil_organic_prediction():
             soil_file.save(soil_filepath)
             aoi_file.save(aoi_filepath)
 
-            # Suponiendo que el shapefile se extrae en el directorio temporal
-            
             data_scale = 20
-            
             start_date = request.form.get('startDate')
             end_date = request.form.get('endDate')
             sentinel1 = request.form.get('sentinel1')
@@ -1796,22 +1793,51 @@ def soil_organic_prediction():
             numberOfTrees = request.form.get('numberOfTrees')
             seed = request.form.get('seed')
             bagFraction = request.form.get('bagFraction')
+            # Validación y valores por defecto
+            if not numberOfTrees:
+                numberOfTrees = 100
+            if not bagFraction:
+                bagFraction = 0.7
+            if not seed:
+                seed = 42
             rsquare = request.form.get('rsquare')
             rmse = request.form.get('rmse')
             mse = request.form.get('mse')
             mae = request.form.get('mae')
             rpiq = request.form.get('rpiq')
 
+            # Buscar variantes de la columna SOC
+            try:
+                gdf = gpd.read_file(soil_filepath)
+            except MemoryError:
+                return jsonify({"error": "El archivo de suelo es demasiado grande o el servidor no tiene suficiente memoria para procesarlo. Por favor, intente con un archivo más pequeño."}), 500
+            except Exception as e:
+                return jsonify({"error": f"Error al leer el archivo de suelo: {str(e)}"}), 500
 
-            
-            gdf = gpd.read_file(soil_filepath)
+            soc_column = None
+            posibles_soc = ['SOC', 'soc', 'SoC', 's_o_c', 'carbono', 'carbon', 'soil_organic_carbon', 'soilorganiccarbon']
+            for col in gdf.columns:
+                if col.strip().lower() in [v.lower() for v in posibles_soc]:
+                    soc_column = col
+                    break
+            if soc_column is None:
+                gdf['SOC'] = 0
+                soc_column = 'SOC'
+            elif soc_column != 'SOC':
+                gdf = gdf.rename(columns={soc_column: 'SOC'})
             geojson_dict = gdf.__geo_interface__
             table = ee.FeatureCollection(geojson_dict['features'])
 
-            gdf = gpd.read_file(aoi_filepath)
+            try:
+                gdf = gpd.read_file(aoi_filepath)
+            except MemoryError:
+                return jsonify({"error": "El archivo AOI es demasiado grande o el servidor no tiene suficiente memoria para procesarlo. Por favor, intente con un archivo más pequeño."}), 500
+            except Exception as e:
+                return jsonify({"error": f"Error al leer el archivo AOI: {str(e)}"}), 500
+
             geojson_dict = gdf.__geo_interface__
             bbox = ee.FeatureCollection(geojson_dict['features'])
-            
+
             coleccion_sentinel = ee.ImageCollection("COPERNICUS/S2_HARMONIZED")\
             .filterDate(start_date, end_date)\
             .filterBounds(bbox)\
@@ -2038,11 +2064,18 @@ def soil_organic_prediction():
             }
             map_id = predicted_soil_carbon.getMapId(visualization_parameters)
             
+            # Extraer el polígono AOI para devolverlo al frontend
+            aoi_polygon = None
+            if 'features' in geojson_dict and len(geojson_dict['features']) > 0:
+                aoi_polygon = geojson_dict['features'][0]['geometry']
+
             return jsonify({
                 "success": True,
-                "output": [map_id['tile_fetcher'].url_format, visualization_parameters, 'DSM_Result']
+                "output": [map_id['tile_fetcher'].url_format, visualization_parameters, 'DSM_Result', aoi_polygon]
             }), 200
 
+    except MemoryError:
+        return jsonify({"error": "El servidor ha superado el límite de memoria al procesar la petición. Intente con archivos más pequeños."}), 500
     except Exception as e:
         print(str(e))
         return jsonify({"error": str(e)}), 500

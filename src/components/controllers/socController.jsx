@@ -236,11 +236,28 @@ class SocController extends React.Component {
     }
 
     handleDataSubmit = (data) => {
-        this.setState({url: data})
-        console.log("Datos recibidos en ModelController:", data);
-        emitter.emit('moveURL', this.state.url);
-        // Puedes manejar los datos como desees aquí
-      };
+        // Si hay advertencia del backend, mostrarla como warning
+        if (data && data.warning) {
+            emitter.emit('showSnackbar', 'warning', data.warning);
+            return;
+        }
+        // Validación de GeoJSON antes de emitir 'moveURL'
+        let output = Array.isArray(data) ? data : (data && Array.isArray(data.output) ? data.output : null);
+        if (output) {
+            // Validar que output[3] (o el índice correspondiente) sea un GeoJSON Polygon válido
+            const polygon = output[3];
+            if (!polygon || typeof polygon !== 'object' || polygon.type !== 'Polygon' || !Array.isArray(polygon.coordinates)) {
+                emitter.emit('showSnackbar', 'error', 'El resultado no contiene un polígono GeoJSON válido para mostrar en el mapa.');
+                return;
+            }
+            this.setState({url: output});
+            console.log("Datos recibidos en ModelController (array):", output);
+            emitter.emit('moveURL', output);
+        } else {
+            console.error('El resultado recibido no es un array válido:', data);
+            emitter.emit('showSnackbar', 'error', 'El resultado recibido no es válido para mostrar en el mapa.');
+        }
+    };
 
     handleAddClick = () => {
         // Get GeoJSON from map

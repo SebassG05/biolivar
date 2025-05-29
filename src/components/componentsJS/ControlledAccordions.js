@@ -510,10 +510,6 @@ export default function ControlledAccordions({onSubmit}) {
               control={<Checkbox name="mae" checked={formData.performanceIndicators.mae} onChange={handleChange} />}
               label="MAE"
             />
-            <FormControlLabel
-              control={<Checkbox name="rpiq" checked={formData.performanceIndicators.rpiq} onChange={handleChange} />}
-              label="RPIQ"
-            />
           </FormGroup>
         </AccordionDetails>
       </Accordion>

@@ -881,8 +881,7 @@ def get_spectral_indexes():
             }
             map_id = composite_clipped.getMapId(visualization_parameters)
             
-                
-        return jsonify({"success": True, "output": map_id['tile_fetcher'].url_format}), 200
+            return jsonify({"success": True, "output": map_id['tile_fetcher'].url_format}), 200
 
     except Exception as e:
         print(str(e))
@@ -2048,7 +2047,12 @@ def soil_organic_prediction():
                 scale=data_scale,
                 geometries=True
             )
-
+            # Depuración: imprime el número de muestras de entrenamiento
+            try:
+                n_samples = training_samples.size().getInfo()
+                print('Número de muestras de entrenamiento (sampleRegions):', n_samples)
+            except Exception as e:
+                print('Error al obtener el número de muestras de entrenamiento:', e)
 	
             classifier_rf = ee.Classifier.smileRandomForest(numberOfTrees=int(numberOfTrees), bagFraction=float(bagFraction), seed=int(seed)).setOutputMode('REGRESSION').train(
                 features=training_samples,
@@ -2057,10 +2061,24 @@ def soil_organic_prediction():
             )
             
             predicted_soil_carbon = stack.classify(classifier_rf).rename("Predicted_SOC")
+
+            # Calcular min y max dinámicos sobre el AOI
+            minmax = predicted_soil_carbon.reduceRegion(
+                reducer=ee.Reducer.minMax(),
+                geometry=bbox.geometry(),
+                scale=data_scale,
+                maxPixels=1e9
+            ).getInfo()
+            min_val = minmax.get('Predicted_SOC_min', 0)
+            max_val = minmax.get('Predicted_SOC_max', 6)
+            print(f"[SOC] Calculated min: {min_val}, max: {max_val}")
+            if min_val is None or max_val is None or min_val == max_val:
+                min_val = 0
+                max_val = 6
             visualization_parameters = {
-                'min': 0,
-                'max': 6,
-                'palette': ['#FFFFE5', '#FEE391', '#FEC44F', '#EC7014', '#8C2D04']
+                'min': min_val,
+                'max': max_val,
+                'palette': ['#1a9850', '#a6d96a', '#ffffbf', '#fdae61', '#d73027']
             }
             map_id = predicted_soil_carbon.getMapId(visualization_parameters)
             

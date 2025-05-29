@@ -640,7 +640,8 @@ class LayerController extends React.Component {
             return (
                 <div>
                     <Typography><strong>DSM</strong> (t/ha)</Typography>
-                    {['#ffffe5', '#fee391', '#fec44f', '#ec7014', '#8c2d04'].map((color, index) => {
+                    {/* Paleta verdoso-rojiza actualizada */}
+                    {['#1a9850', '#a6d96a', '#ffffbf', '#fdae61', '#d73027'].map((color, index) => {
                         const labels = [
                             '0 - 1.2',
                             '1.2 - 2.4',
@@ -1518,7 +1519,7 @@ class LayerController extends React.Component {
                                                             fontWeight: 700,
                                                             fontSize: 16,
                                                             color: '#fff',
-                                                            boxShadow: '0 2px 8px rgba(67, 160, 71, 0.12)',
+                                                            boxShadow: '0 2px 8px rgba(67,160,71,0.12)',
                                                             outline: 'none',
                                                             marginBottom: 8,
                                                             letterSpacing: 0.5,

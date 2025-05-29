@@ -9,6 +9,7 @@ import AccordionSummary from '@material-ui/core/AccordionSummary';
 import Typography from '@material-ui/core/Typography';
 import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
 import shp from 'shpjs';
+import emitter from '@/utils/events.utils';
 
 
 const useStyles = makeStyles((theme) => ({
@@ -318,6 +319,16 @@ export default function ControlledAccordions({onSubmit}) {
         console.log('Data sent successfully', result);
         onSubmit(result.output);
         setLoading(false);
+        // Refuerzo: cerrar panel SOC y abrir panel de capas inmediatamente
+        if (window.emitter) {
+          window.emitter.emit('closeAllController');
+          window.emitter.emit('openLayerController');
+          window.emitter.emit('moveURL', result.output);
+        } else if (typeof emitter !== "undefined") {
+          emitter.emit('closeAllController');
+          emitter.emit('openLayerController');
+          emitter.emit('moveURL', result.output);
+        }
       } else {
         setLoading(false);
         window.emitter && window.emitter.emit('showSnackbar', 'error', 'Respuesta inesperada del servidor.');

@@ -260,7 +260,7 @@ export default function ControlledAccordions({onSubmit}) {
     }
   }
 
-  const handleSubmit = async () => {
+    const handleSubmit = async () => {
     try {
       setLoading(true);
       setTimer(0); // Reset the timer when the submit button is clicked
@@ -270,39 +270,46 @@ export default function ControlledAccordions({onSubmit}) {
       data.append('aoiDataFiles', formData.aoiDataFiles[0]);
       data.append('startDate', formData.startDate);
       data.append('endDate', formData.endDate);
-
-
+  
       for (const key in formData.satelliteData) {
         data.append(key, formData.satelliteData[key]);
       }
-
+  
       for (const key in formData.indexes) {
         data.append(key, formData.indexes[key]);
       }
-
+  
       for (const key in formData.modelFeatures) {
         data.append(key, formData.modelFeatures[key]);
       }
-
+  
       for (const key in formData.performanceIndicators) {
         data.append(key, formData.performanceIndicators[key]);
       }
       
       console.log(data);
-      console.log("Aqi")
+      console.log("Aqi");
       const response = await fetch('https://gobiolivar.evenor-tech.com/api/soil_organic_prediction', {
-         method: 'POST',
-         body: data
+        method: 'POST',
+        body: data
       });
-
+  
       const result = await response.json();
-      if(result){
+      if (result) {
         console.log('Data sent successfully', result);
         onSubmit(result.output);
+        // Cambia a panel de capas:
+        if (window.emitter) {
+          window.emitter.emit('moveURL', result.output);
+          window.emitter.emit('closeAllController');
+          window.emitter.emit('openLayerController');
+        } else if (typeof emitter !== "undefined") {
+          emitter.emit('moveURL', result.output);
+          emitter.emit('closeAllController');
+          emitter.emit('openLayerController');
+        }
         setLoading(false);
       }
-
-
     } catch (error) {
       setLoading(false);
       console.error('Failed to send data', error);

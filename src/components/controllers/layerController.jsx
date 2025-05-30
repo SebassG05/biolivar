@@ -325,6 +325,8 @@ class LayerController extends React.Component {
             legendVariableLayerIndex: 0,
             showRusleLegend: false, 
             showRusleInfo: false, 
+            showSOCLegend: false, // Nuevo estado para el subdesplegable SOC
+            showSOCInfo: false,   // Estado para el info del subdesplegable SOC
         };
     }
 
@@ -396,7 +398,8 @@ class LayerController extends React.Component {
     };
 
     handleLegendNext = () => {
-        const activeVariableLayers = this.state.layers.filter(l => l.visible && l.id && !l.id.toUpperCase().includes('VICI') && !l.id.toUpperCase().includes('SPATIO') && (['NDVI','EVI','GNDVI','NDMI','MSI','BI','SAVI'].some(idx => l.id.toUpperCase().includes(idx))));
+        const activeVariableLayers = this.state.layers.filter(l => l.visible && l.id && !l.id.toUpperCase().includes('VICI') && !l.id.toUpperCase().includes('SPATIO') && (['NDVI','EVI','GNDVI','NDMI','MSI','BI','SAVI'].some(
+            idx => l.id.toUpperCase().includes(idx))));
         this.setState(prev => ({
             legendVariableLayerIndex: prev.legendVariableLayerIndex < activeVariableLayers.length - 1 ? prev.legendVariableLayerIndex + 1 : prev.legendVariableLayerIndex
         }));
@@ -476,7 +479,9 @@ class LayerController extends React.Component {
                     dataset: newLayerData.dataset,
                     // Añade estas dos líneas:
                     startDate: newLayerData.startDate,
-                    endDate: newLayerData.endDate
+                    endDate: newLayerData.endDate,
+                    // INTEGRAR MÉTRICAS SI EXISTEN
+                    metrics: newLayerData.metrics || undefined
                 };
                 // Si es una capa RUSLE, abre el panel automáticamente
                 const isRusle = layerToAdd.id && (
@@ -855,15 +860,7 @@ class LayerController extends React.Component {
         }));
     };
 
-    handleSurfaceInfoClick = () => {
-        this.setState((prev) => ({ showSurfaceInfo: !prev.showSurfaceInfo }));
-    };
-
-    handleSpatiotemporalInfoClick = () => {
-        this.setState((prev) => ({ showSpatiotemporalInfo: !prev.showSpatiotemporalInfo }));
-    };
-
-        toggleRusleLegend = () => {
+    toggleRusleLegend = () => {
         this.setState(prevState => ({
             showRusleLegend: !prevState.showRusleLegend
         }));
@@ -871,6 +868,16 @@ class LayerController extends React.Component {
     
     handleRusleInfoClick = () => {
         this.setState(prev => ({ showRusleInfo: !prev.showRusleInfo }));
+    };
+
+    toggleSOCLegend = () => {
+        this.setState(prevState => ({
+            showSOCLegend: !prevState.showSOCLegend
+        }));
+    };
+    
+    handleSOCInfoClick = () => {
+        this.setState(prev => ({ showSOCInfo: !prev.showSOCInfo }));
     };
 
     render() {
@@ -895,6 +902,14 @@ class LayerController extends React.Component {
             l.id.toUpperCase().includes('RUSLE') || l.id.toUpperCase().includes('EROSION')
         )
         );
+        const socLayer = this.state.layers.find(
+            l => l.visible && l.id && (
+                l.id.toUpperCase().includes('SOC') ||
+                l.id.toUpperCase().includes('SOIL_ORGANIC') ||
+                l.id.toUpperCase().includes('DSM_RESULT')
+            )
+        );
+        const blockSOC = !socLayer;
         // Si no hay ninguna capa visible, forzar a cerrar los paneles y no mostrar leyenda
         if (visibleLayers.length === 0) {
             return (
@@ -911,7 +926,9 @@ class LayerController extends React.Component {
                             <CardContent style={styles.content}>
                                 <List id="layers" style={styles.layerList}>
                                     {this.state.layers.map(layer => {
-                                        const indice = ['NDVI','EVI','GNDVI','NDMI','MSI','BI','SAVI'].find(idx => layer.id.toUpperCase().includes(idx));
+                                        // Proteger contra capas sin id
+                                        if (!layer || !layer.id) return null;
+                                        const indice = ['NDVI','EVI','GNDVI','NDMI','MSI','BI','SAVI'].find(idx => typeof layer.id === 'string' && layer.id.toUpperCase().includes(idx));
                                         return (
                                             <React.Fragment key={layer.id}>
                                                 <ListItem style={styles.layerItem}>
@@ -1195,7 +1212,9 @@ class LayerController extends React.Component {
                         <CardContent style={styles.content}>
                             <List id="layers" style={styles.layerList}>
                                 {this.state.layers.map(layer => {
-                                    const indice = ['NDVI','EVI','GNDVI','NDMI','MSI','BI','SAVI'].find(idx => layer.id.toUpperCase().includes(idx));
+                                    // Proteger contra capas sin id
+                                    if (!layer || !layer.id) return null;
+                                    const indice = ['NDVI','EVI','GNDVI','NDMI','MSI','BI','SAVI'].find(idx => typeof layer.id === 'string' && layer.id.toUpperCase().includes(idx));
                                     return (
                                         <React.Fragment key={layer.id}>
                                             <ListItem style={styles.layerItem}>
@@ -1357,7 +1376,7 @@ class LayerController extends React.Component {
                                             </Typography>
                                         </div>
                                     </Collapse>
-                                        <Collapse in={this.state.showRusleLegend && !blockRusle} timeout="auto" unmountOnExit>
+                                    <Collapse in={this.state.showRusleLegend && !blockRusle} timeout="auto" unmountOnExit>
                                         <div style={{ padding: '10px 0', textAlign: 'center', maxHeight: '250px', overflowY: 'auto' }}>
                                             <Typography variant="subtitle2" style={{ fontWeight: 700, color: '#490EFF', marginBottom: 8 }}>Paleta Modelo Rusle</Typography>
                                             {/* Barra de colores para Rusle */}
@@ -1374,6 +1393,93 @@ class LayerController extends React.Component {
                                             )}
                                             {/* Si quieres, puedes dejar la leyenda antigua debajo */}
                                             {/* {rusleLayer ? this.getLegendContent(rusleLayer) : null} */}
+                                        </div>
+                                    </Collapse>
+                                    {/* SOC (Carbono Orgánico del Suelo) */}
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            cursor: blockSOC ? 'not-allowed' : 'pointer',
+                                            padding: '10px 0',
+                                            borderBottom: '1px solid #eee',
+                                            opacity: blockSOC ? 0.4 : 1,
+                                            background: blockSOC ? '#f0f0f0' : undefined,
+                                            color: blockSOC ? '#aaa' : undefined
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', color: blockSOC ? '#aaa' : undefined }}>
+                                            <Typography variant="body2"><strong><b>SOC (Carbono Orgánico del Suelo)</b></strong></Typography>
+                                            <IconButton size="small" onClick={e => { e.stopPropagation(); this.handleSOCInfoClick(); }} style={{ marginLeft: 6, color: blockSOC ? '#aaa' : '#1976d2' }} disabled={blockSOC}>
+                                                <Icon style={{ fontSize: 18 }}>info</Icon>
+                                            </IconButton>
+                                        </div>
+                                        <Icon style={{ cursor: blockSOC ? 'not-allowed' : 'pointer', color: blockSOC ? '#aaa' : undefined }} onClick={e => { if (!blockSOC) { e.stopPropagation(); this.toggleSOCLegend(); } }}>
+                                            {this.state.showSOCLegend ? 'expand_less' : 'expand_more'}
+                                        </Icon>
+                                    </div>
+                                    <Collapse in={this.state.showSOCInfo && !blockSOC} timeout="auto" unmountOnExit>
+                                        <div style={{ padding: '12px 16px', background: '#f9f9f9', borderRadius: 8, margin: '8px 0' }}>
+                                            <Typography variant="subtitle2" gutterBottom><b>¿Para qué sirve el análisis SOC?</b></Typography>
+                                            <Typography variant="body2" style={{ textAlign: 'justify' }}>
+                                                Esta funcionalidad permite estimar el carbono orgánico del suelo (SOC) en el área seleccionada, usando modelos predictivos y datos satelitales. El SOC es un indicador clave de la salud y fertilidad del suelo.
+                                            </Typography>
+                                        </div>
+                                    </Collapse>
+                                    <Collapse in={this.state.showSOCLegend && !blockSOC} timeout="auto" unmountOnExit>
+                                        <div style={{ padding: '10px 0', textAlign: 'center', maxHeight: '250px', overflowY: 'auto' }}>
+                                            {socLayer && (
+                                                <>
+                                                    <Typography variant="subtitle2" style={{ fontWeight: 700, color: '#795548', marginBottom: 8 }}>Paleta SOC (t/ha)</Typography>
+                                                    <div style={{
+                                                        width: '100%',
+                                                        height: 20,
+                                                        background: 'linear-gradient(to right, #1a9850, #a6d96a, #ffffbf, #fdae61, #d73027)',
+                                                        borderRadius: 5,
+                                                        margin: '10px 0'
+                                                    }}></div>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
+                                                        <span>Mín: {typeof socLayer.min === 'number' ? socLayer.min.toFixed(2) : socLayer.min || '0'}</span>
+                                                        <span>Máx: {typeof socLayer.max === 'number' ? socLayer.max.toFixed(2) : socLayer.max || '6'}</span>
+                                                    </div>
+                                                    {socLayer.startDate && socLayer.endDate && (
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 4 }}>
+                                                            <span>Inicio: {socLayer.startDate}</span>
+                                                            <span>Fin: {socLayer.endDate}</span>
+                                                        </div>
+                                                    )}
+                                                    {/* Mostrar métricas de desempeño si existen */}
+                                                    {socLayer && socLayer.metrics && Object.keys(socLayer.metrics).length > 0 && (
+                                                        <div style={{ marginTop: 8, textAlign: 'left' }}>
+                                                            <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 4, marginBottom: 4, fontSize: 13 }}>
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th colSpan={2} style={{ textAlign: 'center', background: '#f5f5f5', fontWeight: 700, fontSize: 14, padding: 6 }}>
+                                                                            Indicadores de desempeño
+                                                                        </th>
+                                                                    </tr>
+                                                                    <tr style={{ background: '#f5f5f5' }}>
+                                                                        <th style={{ border: '1px solid #ddd', padding: 4, fontWeight: 600 }}>Índice</th>
+                                                                        <th style={{ border: '1px solid #ddd', padding: 4, fontWeight: 600 }}>Valor</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {Object.entries(socLayer.metrics).map(([key, value]) => (
+                                                                        <tr key={key}>
+                                                                            <td style={{ border: '1px solid #ddd', padding: 4 }}>{key}</td>
+                                                                            <td style={{ border: '1px solid #ddd', padding: 4 }}>{typeof value === 'number' ? value.toFixed(3) : value}</td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            )}
+                                            {!socLayer && (
+                                                <Typography variant="body2" color="textSecondary" style={{ marginTop: 12 }}>No hay resultados de SOC para mostrar.</Typography>
+                                            )}
                                         </div>
                                     </Collapse>
 
@@ -1598,7 +1704,13 @@ class LayerController extends React.Component {
                                                                                         maxRotation: 60,
                                                                                         minRotation: 60,
                                                                                         font: { size: 12 },
-                                                                                        callback: function(value, index, values) {/* ...existing code... */}
+                                                                                        callback: function(value, index, values) {
+                                                                                            const label = this.getLabelForValue(value);
+                                                                                            if (typeof label === 'string' && label.match(/^\d{4}-\d{2}/)) {
+                                                                                                return label.substring(0, 7);
+                                                                                            }
+                                                                                            return label;
+                                                                                        }
                                                                                     }
                                                                                 },
                                                                                 y: {
@@ -1624,7 +1736,7 @@ class LayerController extends React.Component {
                                                                                 alignItems: 'center',
                                                                                 justifyContent: 'center',
                                                                                 cursor: 'pointer',
-                                                                                boxShadow: '0 2px 8px rgba(67, 233, 123, 0.12)',
+                                                                                boxShadow: '0 2px 8px rgba(67,233,123,0.12)',
                                                                                 margin: 0,
                                                                                 padding: 0
                                                                             }}

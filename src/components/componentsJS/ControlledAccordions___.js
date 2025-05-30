@@ -289,6 +289,11 @@ export default function ControlledAccordions({onSubmit}) {
         data.append(key, formData.performanceIndicators[key]);
       }
       
+      // Añadir columna objetivo si el usuario la seleccionó
+      if (selectedColumn) {
+        data.append('target_column', selectedColumn);
+      }
+      
       console.log(data);
       console.log("Aqi")
       const response = await fetch('http://localhost:500/api/soil_organic_prediction', {
@@ -317,7 +322,8 @@ export default function ControlledAccordions({onSubmit}) {
 
       if(result && result.output){
         console.log('Data sent successfully', result);
-        onSubmit(result.output);
+        // PASAR TAMBIÉN LAS MÉTRICAS AL onSubmit
+        onSubmit(result.output, result.metrics);
         setLoading(false);
         // Refuerzo: cerrar panel SOC y abrir panel de capas inmediatamente
         if (window.emitter) {

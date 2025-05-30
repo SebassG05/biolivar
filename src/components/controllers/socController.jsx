@@ -235,26 +235,39 @@ class SocController extends React.Component {
         });
     }
 
-    handleDataSubmit = (data) => {
+    handleDataSubmit = (output, metrics) => {
         // Si hay advertencia del backend, mostrarla como warning
-        if (data && data.warning) {
-            emitter.emit('showSnackbar', 'warning', data.warning);
+        if (output && output.warning) {
+            emitter.emit('showSnackbar', 'warning', output.warning);
             return;
         }
         // Validación de GeoJSON antes de emitir 'moveURL'
-        let output = Array.isArray(data) ? data : (data && Array.isArray(data.output) ? data.output : null);
-        if (output) {
+        let resultArray = Array.isArray(output) ? output : (output && Array.isArray(output.output) ? output.output : null);
+        if (resultArray) {
             // Validar que output[3] (o el índice correspondiente) sea un GeoJSON Polygon válido
-            const polygon = output[3];
+            const polygon = resultArray[3];
             if (!polygon || typeof polygon !== 'object' || polygon.type !== 'Polygon' || !Array.isArray(polygon.coordinates)) {
                 emitter.emit('showSnackbar', 'error', 'El resultado no contiene un polígono GeoJSON válido para mostrar en el mapa.');
                 return;
             }
+            // Construir el objeto de capa correctamente para LayerController
+            const newLayer = {
+                id: resultArray[2] || 'SOC',
+                visible: true,
+                transparency: 100,
+                min: (resultArray[1] && resultArray[1].min != null ? resultArray[1].min : (resultArray[4] != null ? resultArray[4] : 0)),
+                max: (resultArray[1] && resultArray[1].max != null ? resultArray[1].max : (resultArray[5] != null ? resultArray[5] : 6)),
+                dataset: resultArray[6],
+                startDate: resultArray[7],
+                endDate: resultArray[8],
+                metrics: metrics
+            };
+            emitter.emit('newLayer', newLayer);
             this.setState({url: output});
             console.log("Datos recibidos en ModelController (array):", output);
             emitter.emit('moveURL', output);
         } else {
-            console.error('El resultado recibido no es un array válido:', data);
+            console.error('El resultado recibido no es un array válido:', output);
             emitter.emit('showSnackbar', 'error', 'El resultado recibido no es válido para mostrar en el mapa.');
         }
     };

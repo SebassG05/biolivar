@@ -870,17 +870,21 @@ def get_spectral_indexes():
                 scale=30,
                 maxPixels=1e9
             ).getInfo()
+            
             band_name = list(composite_clipped.bandNames().getInfo())[0]
             min_val = percentiles.get(f"{band_name}_p2")
             max_val = percentiles.get(f"{band_name}_p98")
+
             if min_val is None or max_val is None or min_val == max_val:
                 min_val = 0.3
                 max_val = 0.8
             visualization_parameters = {
-                'min': min_val, 'max': max_val,  'palette':  palette
+                'min': min_val, 'max': max_val, 'palette': palette
             }
+
             map_id = composite_clipped.getMapId(visualization_parameters)
-            
+            bounds = bbox.geometry().getInfo()
+
             return jsonify({"success": True, "output": map_id['tile_fetcher'].url_format}), 200
 
     except Exception as e:
@@ -1805,37 +1809,37 @@ def soil_organic_prediction():
             mae = request.form.get('mae')
             rpiq = request.form.get('rpiq')
 
-            # Buscar variantes de la columna SOC
-            try:
-                gdf = gpd.read_file(soil_filepath)
-            except MemoryError:
-                return jsonify({"error": "El archivo de suelo es demasiado grande o el servidor no tiene suficiente memoria para procesarlo. Por favor, intente con un archivo más pequeño."}), 500
-            except Exception as e:
-                return jsonify({"error": f"Error al leer el archivo de suelo: {str(e)}"}), 500
-
+            # Buscar columna objetivo (SOC) de los parámetros o variantes conocidas
+            target_column = request.form.get('target_column')
+            gdf_soil = gpd.read_file(soil_filepath)
+            print(f"[DEBUG] target_column recibido: {target_column}")
+            print(f"[DEBUG] Columnas en gdf_soil: {list(gdf_soil.columns)}")
             soc_column = None
-            posibles_soc = ['SOC', 'soc', 'SoC', 's_o_c', 'carbono', 'carbon', 'soil_organic_carbon', 'soilorganiccarbon']
-            for col in gdf.columns:
-                if col.strip().lower() in [v.lower() for v in posibles_soc]:
-                    soc_column = col
-                    break
+            if target_column and target_column in gdf_soil.columns:
+                soc_column = target_column
+            else:
+                posibles_soc = ['SOC', 'soc', 'SoC', 's_o_c', 'carbono', 'carbon', 'soil_organic_carbon', 'soilorganiccarbon']
+                for col in gdf_soil.columns:
+                    if col.strip().lower() in [v.lower() for v in posibles_soc]:
+                        soc_column = col
+                        break
+            print(f"[DEBUG] soc_column determinado: {soc_column}")
             if soc_column is None:
-                gdf['SOC'] = 0
-                soc_column = 'SOC'
-            elif soc_column != 'SOC':
-                gdf = gdf.rename(columns={soc_column: 'SOC'})
-            geojson_dict = gdf.__geo_interface__
-            table = ee.FeatureCollection(geojson_dict['features'])
+                raise Exception("No se encontró ninguna columna de carbono orgánico del suelo en los datos de suelo. Usa el parámetro 'target_column' si tu columna tiene otro nombre.")
+            # No renombrar, usar el nombre real
+            geojson_dict_soil = gdf_soil.__geo_interface__
+            table = ee.FeatureCollection(geojson_dict_soil['features'])
 
+            # Procesar AOI
             try:
-                gdf = gpd.read_file(aoi_filepath)
+                gdf_aoi = gpd.read_file(aoi_filepath)
             except MemoryError:
                 return jsonify({"error": "El archivo AOI es demasiado grande o el servidor no tiene suficiente memoria para procesarlo. Por favor, intente con un archivo más pequeño."}), 500
             except Exception as e:
                 return jsonify({"error": f"Error al leer el archivo AOI: {str(e)}"}), 500
 
-            geojson_dict = gdf.__geo_interface__
-            bbox = ee.FeatureCollection(geojson_dict['features'])
+            geojson_dict_aoi = gdf_aoi.__geo_interface__
+            bbox = ee.FeatureCollection(geojson_dict_aoi['features'])
 
             coleccion_sentinel = ee.ImageCollection("COPERNICUS/S2_HARMONIZED")\
             .filterDate(start_date, end_date)\
@@ -2043,7 +2047,7 @@ def soil_organic_prediction():
             # Sampling and Classifier
             training_samples = stack.sampleRegions(
                 collection=table,
-                properties=['SOC'],
+                properties=[soc_column],
                 scale=data_scale,
                 geometries=True
             )
@@ -2056,7 +2060,7 @@ def soil_organic_prediction():
 	
             classifier_rf = ee.Classifier.smileRandomForest(numberOfTrees=int(numberOfTrees), bagFraction=float(bagFraction), seed=int(seed)).setOutputMode('REGRESSION').train(
                 features=training_samples,
-                classProperty='SOC',
+                classProperty=soc_column,
                 inputProperties=stack.bandNames()
             )
             
@@ -2084,12 +2088,60 @@ def soil_organic_prediction():
             
             # Extraer el polígono AOI para devolverlo al frontend
             aoi_polygon = None
-            if 'features' in geojson_dict and len(geojson_dict['features']) > 0:
-                aoi_polygon = geojson_dict['features'][0]['geometry']
+            if 'features' in geojson_dict_aoi and len(geojson_dict_aoi['features']) > 0:
+                aoi_polygon = geojson_dict_aoi['features'][0]['geometry']
+
+            # --- Cálculo de métricas de desempeño si el usuario lo solicita ---
+            metrics_result = {}
+            if any([rsquare == 'true', rmse == 'true', mse == 'true', mae == 'true']):
+                try:
+                    df = gdf_soil.copy()
+                    print(f"[DEBUG] Columnas en df antes de métricas: {list(df.columns)}")
+                    print(f"[DEBUG] soc_column usado en métricas: {soc_column}")
+                    if soc_column not in df.columns:
+                        raise Exception(f"No se encontró la columna '{soc_column}' en los datos de suelo para el cálculo de métricas.")
+                    if df[soc_column].isnull().all() or df[soc_column].count() == 0:
+                        raise Exception(f"La columna '{soc_column}' está vacía o todos sus valores son nulos. No se pueden calcular métricas.")
+
+                    # --- NUEVO: Calcular métricas comparando predicción satelital vs real ---
+                    # Obtener predicción satelital para todos los puntos de una vez
+                    predicted_features = predicted_soil_carbon.sampleRegions(
+                        collection=table,
+                        scale=data_scale,
+                        geometries=True
+                    ).getInfo()
+
+                    y_true_valid = []
+                    y_pred_valid = []
+                    for feat in predicted_features['features']:
+                        props = feat['properties']
+                        real = props.get(soc_column)
+                        pred = props.get('Predicted_SOC')
+                        if real is not None and pred is not None:
+                            y_true_valid.append(real)
+                            y_pred_valid.append(pred)
+                    if len(y_true_valid) > 1:
+                        import numpy as np
+                        from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
+                        if rsquare == 'true':
+                            metrics_result['R2'] = r2_score(y_true_valid, y_pred_valid)
+                        if rmse == 'true':
+                            metrics_result['RMSE'] = mean_squared_error(y_true_valid, y_pred_valid) ** 0.5
+                        if mse == 'true':
+                            metrics_result['MSE'] = mean_squared_error(y_true_valid, y_pred_valid)
+                        if mae == 'true':
+                            metrics_result['MAE'] = mean_absolute_error(y_true_valid, y_pred_valid)
+                    else:
+                        metrics_result['error'] = 'No hay suficientes puntos válidos para calcular métricas.'
+                except Exception as e:
+                    print('Error calculando métricas:', e)
+                    metrics_result['error'] = str(e)
+            # --- Fin métricas ---
 
             return jsonify({
                 "success": True,
-                "output": [map_id['tile_fetcher'].url_format, visualization_parameters, 'DSM_Result', aoi_polygon]
+                "output": [map_id['tile_fetcher'].url_format, visualization_parameters, 'DSM_Result', aoi_polygon],
+                "metrics": metrics_result
             }), 200
 
     except MemoryError:

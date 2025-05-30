@@ -1445,7 +1445,7 @@ def spatiotemporal_analysis_v2():
                     )
                 years = ee.List.sequence(int(start[:4]), int(end[:4]))
                 months = ee.List.sequence(1, 12)
-                monthlyPrecipList = years.map(lambda year: months.map(lambda month: calculateMonthlyPrecipitation(year, month))).flatten()
+                monthlyPrecipList = years.map(lambda year: months.map(lambda m: calculateMonthlyPrecipitation(year, m))).flatten()
                 monthlyPrecipCollection = ee.ImageCollection.fromImages(monthlyPrecipList).filter(ee.Filter.notNull(['system:time_start']))
                 def safePrecipFeature(image):
                     value = image.reduceRegion(ee.Reducer.mean(), aoi, 30).get('precipitation')
@@ -1626,6 +1626,7 @@ def get_spatiotemporal():
                 aoi_file.save(zip_path)
                 with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                     zip_ref.extractall(temp_dir)
+                # Buscar el .shp extraído
                 shp_files = [f for f in os.listdir(temp_dir) if f.endswith('.shp')]
                 if not shp_files:
                     return jsonify({"error": "No se encontró el .shp en el ZIP"}), 400
@@ -1692,7 +1693,7 @@ def get_spatiotemporal():
                 )
             years = ee.List.sequence(int(start[:4]), int(end[:4]))
             months = ee.List.sequence(1, 12)
-            monthlyPrecipList = years.map(lambda year: months.map(lambda month: calculateMonthlyPrecipitation(year, month))).flatten()
+            monthlyPrecipList = years.map(lambda year: months.map(lambda m: calculateMonthlyPrecipitation(year, m))).flatten()
             monthlyPrecipCollection = ee.ImageCollection.fromImages(monthlyPrecipList).filter(ee.Filter.notNull(['system:time_start']))
             def safePrecipFeature(image):
                 value = image.reduceRegion(ee.Reducer.mean(), aoi, 30).get('precipitation')
@@ -1784,7 +1785,7 @@ def soil_organic_prediction():
             soil_file.save(soil_filepath)
             aoi_file.save(aoi_filepath)
 
-            data_scale = 20
+            data_scale = 10 ##he cambiado esto a 10 metros Sebas
             start_date = request.form.get('startDate')
             end_date = request.form.get('endDate')
             sentinel1 = request.form.get('sentinel1')
@@ -1793,21 +1794,23 @@ def soil_organic_prediction():
             vegetationIndexes = request.form.get('vegetationIndexes')
             brightnessIndexes = request.form.get('brightnessIndexes')
             moistureIndexes = request.form.get('moistureIndexes')
+            terrainIndexes = request.form.get('terrainIndexes')
+            climateIndexes = request.form.get('climateIndexes')
             numberOfTrees = request.form.get('numberOfTrees')
             seed = request.form.get('seed')
             bagFraction = request.form.get('bagFraction')
             # Validación y valores por defecto
             if not numberOfTrees:
-                numberOfTrees = 100
+                numberOfTrees = 300 #he cambiado number of trees a 300 Sebas
             if not bagFraction:
                 bagFraction = 0.7
             if not seed:
-                seed = 42
+                seed = random.randint(0, 10000) #He cambiado esta linea, no se si esta bien escrito Sebas
             rsquare = request.form.get('rsquare')
             rmse = request.form.get('rmse')
             mse = request.form.get('mse')
             mae = request.form.get('mae')
-            rpiq = request.form.get('rpiq')
+            rpiq = request.form.get('rpiq') # ELIMINAR ESTE PARAMETRO, NO SE USA
 
             # Buscar columna objetivo (SOC) de los parámetros o variantes conocidas
             target_column = request.form.get('target_column')
@@ -1818,7 +1821,7 @@ def soil_organic_prediction():
             if target_column and target_column in gdf_soil.columns:
                 soc_column = target_column
             else:
-                posibles_soc = ['SOC', 'soc', 'SoC', 's_o_c', 'carbono', 'carbon', 'soil_organic_carbon', 'soilorganiccarbon']
+                posibles_soc = ['SOC', 'soc', 'SoC', 's_o_c', 'carbono', 'carbon', 'soil_organic_carbon', 'soilorganiccarbon'] #LISTA POSIBILIDADES DE ENCONTRAR SOC PONER ESTO AL USER??
                 for col in gdf_soil.columns:
                     if col.strip().lower() in [v.lower() for v in posibles_soc]:
                         soc_column = col
@@ -2003,12 +2006,12 @@ def soil_organic_prediction():
 
             composite_indices = add_indices(mosaico_bands)
             
-            precipitation_1d = ee.ImageCollection('UCSB-CHG/CHIRPS/DAILY').select('precipitation')
-            LST= ee.ImageCollection('MODIS/061/MOD11A2').select('LST_Day_1km')
-            surface_radiance = ee.ImageCollection('MODIS/061/MCD18A1').select('DSR')
-            npp = ee.ImageCollection('MODIS/061/MOD17A3HGF').select('Npp')
-            eti = ee.ImageCollection('FAO/WAPOR/2/L1_AETI_D').select('L1_AETI_D')
-            lulc = ee.Image('COPERNICUS/Landcover/100m/Proba-V-C3/Global/2019').select('discrete_classification')
+            precipitation_1d = ee.ImageCollection('UCSB-CHG/CHIRPS/DAILY').select('precipitation').filterDate(start_date, end_date)
+            LST= ee.ImageCollection('MODIS/061/MOD11A2').select('LST_Day_1km').filterDate(start_date, end_date)
+            surface_radiance = ee.ImageCollection('MODIS/061/MCD18A1').select('DSR').filterDate(start_date, end_date)
+            npp = ee.ImageCollection('MODIS/061/MOD17A3HGF').select('Npp').filterDate(start_date, end_date)
+            eti = ee.ImageCollection('FAO/WAPOR/2/L1_AETI_D').select('L1_AETI_D').filterDate(start_date, end_date)
+            
             
             def prec(image):
                 x = image.select("precipitation")
@@ -2028,7 +2031,21 @@ def soil_organic_prediction():
             temperature_stats = statistics(LST, bbox)
             precipitation_stats = statistics(precipitation_1d.map(prec), bbox)
             
-            lulc_clipped = lulc.clip(bbox)
+          
+            # Crear imagen DEM y calcular productos de terreno (SRTM 30m global DEM)
+            composite_terrain = None
+            try:
+                dem = ee.Image("USGS/SRTMGL1_003")
+                terrain = ee.Terrain.products(dem)
+                # terrain tiene bandas: 'elevation', 'slope', 'aspect'
+                terrain_clipped = terrain.clip(bbox)
+                composite_terrain = terrain_clipped.select(['elevation', 'slope', 'aspect'])
+                print('[DEBUG] composite_terrain creado con bandas:', composite_terrain.bandNames().getInfo())
+            except Exception as e:
+                print('Error creando variables de terreno:', e)
+                composite_terrain = None
+
+            # --- STACK SELECTION ---
             stack = None
             if vegetationIndexes == 'true': 
                 stack = composite_indices.select("NDVI", "EVI",
@@ -2043,11 +2060,31 @@ def soil_organic_prediction():
                 "SOCI", "BI")
             if moistureIndexes == "true":
                 stack = composite_indices.select("NDMI", "MSI")
-                    
+            if terrainIndexes == "true" and composite_terrain is not None:
+                stack = composite_terrain.select("elevation", "slope", "aspect")
+                print('[DEBUG] Usando stack de variables de terreno:', stack.bandNames().getInfo())
+            if climateIndexes == "true":
+                try:
+                    # Usar estadísticas climáticas calculadas previamente
+                    stack = ee.Image.cat([
+                        precipitation_stats.select([b for b in precipitation_stats.bandNames().getInfo() if 'mean' in b or 'median' in b]),
+                        temperature_stats.select([b for b in temperature_stats.bandNames().getInfo() if 'mean' in b or 'median' in b]),
+                        surface_radiance.mean().rename('surface_radiance'),
+                        npp.mean().rename('npp'),
+                        eti.mean().rename('eti')
+                    ])
+                    print('[DEBUG] Usando stack de variables climáticas:', stack.bandNames().getInfo())
+                except Exception as e:
+                    print('Error creando stack de variables climáticas:', e)
+                    stack = None
+
+            if stack is None:
+                raise Exception('No se pudo crear el stack de variables para el modelo. Verifica la selección de variables.')
+            
             # Sampling and Classifier
             training_samples = stack.sampleRegions(
                 collection=table,
-                properties=[soc_column],
+                properties=[soc_column], # RESALTAR QUE HAY QUE TENER LA COLUMNA DE SOC DE X FORMA ESPECIFICA PARA Q EL MODELO LO PILLE
                 scale=data_scale,
                 geometries=True
             )
@@ -2093,6 +2130,7 @@ def soil_organic_prediction():
 
             # --- Cálculo de métricas de desempeño si el usuario lo solicita ---
             metrics_result = {}
+            scatter_data = []  # Nuevo: array para frontend scatter plot
             if any([rsquare == 'true', rmse == 'true', mse == 'true', mae == 'true']):
                 try:
                     df = gdf_soil.copy()
@@ -2120,8 +2158,8 @@ def soil_organic_prediction():
                         if real is not None and pred is not None:
                             y_true_valid.append(real)
                             y_pred_valid.append(pred)
+                            scatter_data.append({'real': real, 'predicted': pred})  # Agregar al array para scatter plot
                     if len(y_true_valid) > 1:
-                        import numpy as np
                         from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
                         if rsquare == 'true':
                             metrics_result['R2'] = r2_score(y_true_valid, y_pred_valid)
@@ -2141,7 +2179,8 @@ def soil_organic_prediction():
             return jsonify({
                 "success": True,
                 "output": [map_id['tile_fetcher'].url_format, visualization_parameters, 'DSM_Result', aoi_polygon],
-                "metrics": metrics_result
+                "metrics": metrics_result,
+                "scatter_data": scatter_data  # Nuevo: array para scatter plot en frontend
             }), 200
 
     except MemoryError:
@@ -2150,5 +2189,5 @@ def soil_organic_prediction():
         print(str(e))
         return jsonify({"error": str(e)}), 500
 
-if __name__ == '__main__':
-    app.run(port=500)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=500, debug=True)

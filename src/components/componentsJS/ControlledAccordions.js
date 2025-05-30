@@ -89,9 +89,11 @@ export default function ControlledAccordions({onSubmit}) {
       vegetationIndexes: false,
       brightnessIndexes: false,
       moistureIndexes: false,
+      terrainIndexes: false, //SEBASTIAN
+      climateIndexes: false //SEBASTIAN
     },
     modelFeatures: {
-      numberOfTrees: 500,
+      numberOfTrees: 300,
       seed: 0,
       bagFraction: 0.5,
     },
@@ -472,6 +474,14 @@ export default function ControlledAccordions({onSubmit}) {
                   <FormControlLabel
                     control={<Checkbox name="moistureIndexes" checked={formData.indexes.moistureIndexes} onChange={handleChange} />}
                     label="Moisture indexes"
+                  />
+                  <FormControlLabel
+                    control={<Checkbox name="terrainIndexes" checked={formData.indexes.terrainIndexes} onChange={handleChange} />}
+                    label="Terrain indexes"
+                  />
+                  <FormControlLabel
+                    control={<Checkbox name="climateIndexes" checked={formData.indexes.climateIndexes} onChange={handleChange} />}
+                    label="Climate indexes"
                   />
                 </FormGroup>
               </FormControl>

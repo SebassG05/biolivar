@@ -91,7 +91,7 @@
     "react": "^16.8.6",
     "react-app-polyfill": "^1.0.1",
     "react-auth-kit": "^2.12.3",
-    "react-chartjs-2": "^3.0.4",
+    "react-chartjs-2": "^3.3.0",
     "react-dev-utils": "^9.0.1",
     "react-dom": "^16.8.6",
     "react-elastic-carousel": "^0.11.5",

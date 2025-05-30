@@ -592,6 +592,42 @@ class SocController extends React.Component {
     }
 
     render() {        
+        // Mostrar métricas si existen en el último layer recibido
+        let metricsTable = null;
+        if (this.state.url && this.state.url.metrics && Object.keys(this.state.url.metrics).length > 0) {
+            const metrics = this.state.url.metrics;
+            if (!metrics.error) {
+                metricsTable = (
+                    <div style={{ marginBottom: 16, textAlign: 'center' }}>
+                        <Typography variant="subtitle1" style={{ fontWeight: 'bold', marginBottom: 4 }}>
+                            Indicadores de desempeño
+                        </Typography>
+                        <table style={{ margin: '0 auto', borderCollapse: 'collapse', minWidth: 220 }}>
+                            <thead>
+                                <tr style={{ background: '#f3e5f5' }}>
+                                    <th style={{ padding: '4px 12px', border: '1px solid #ccc' }}>Índice</th>
+                                    <th style={{ padding: '4px 12px', border: '1px solid #ccc' }}>Valor</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {Object.entries(metrics).map(([key, value]) => (
+                                    <tr key={key}>
+                                        <td style={{ padding: '4px 12px', border: '1px solid #ccc' }}>{key}</td>
+                                        <td style={{ padding: '4px 12px', border: '1px solid #ccc' }}>{typeof value === 'number' ? value.toFixed(4) : value}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                );
+            } else {
+                metricsTable = (
+                    <div style={{ marginBottom: 16, textAlign: 'center', color: 'red' }}>
+                        <Typography variant="subtitle2">{metrics.error}</Typography>
+                    </div>
+                );
+            }
+        }
         return (
             <MuiThemeProvider theme={theme}>
                 <Slide direction="left" in={this.state.open}>
@@ -602,6 +638,7 @@ class SocController extends React.Component {
                             <Typography variant="body2" color="textSecondary">Upload your shape and map soil values</Typography>
 			</CardContent>
         <CardContent style={styles.content}>
+            {metricsTable}
             <ControlledAccordions onSubmit={this.handleDataSubmit}/>
             <IconButton style={styles.closeBtn} aria-label="Close" onClick={this.handleCloseClick}>
                                 <Icon fontSize="inherit">chevron_right</Icon>

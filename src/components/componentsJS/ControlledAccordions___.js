@@ -90,6 +90,8 @@ export default function ControlledAccordions({onSubmit}) {
       vegetationIndexes: false,
       brightnessIndexes: false,
       moistureIndexes: false,
+      terrainIndexes: false,
+      climateIndexes: false,
     },
     modelFeatures: {
       numberOfTrees: 500,
@@ -519,7 +521,22 @@ export default function ControlledAccordions({onSubmit}) {
           <Typography className={classes.heading}>Model features</Typography>
         </AccordionSummary>
         <AccordionDetails>
-          {handleModelFeatures()}
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <FormControl component="fieldset" className={classes.formControl}>
+                <Typography variant="subtitle1">Terrain & Climate Variables:</Typography>
+                <FormGroup>
+                  <FormControlLabel
+                    control={<Checkbox name="terrainIndexes" checked={formData.indexes.terrainIndexes} onChange={handleChange} />}
+                    label="Terrain variables (elevation, slope, aspect)"
+                  />
+                </FormGroup>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              {handleModelFeatures()}
+            </Grid>
+          </Grid>
         </AccordionDetails>
       </Accordion>
       <Accordion expanded={expanded === 'panel5'} onChange={handleChangeExp('panel5')}>

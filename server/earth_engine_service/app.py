@@ -2189,5 +2189,104 @@ def soil_organic_prediction():
         print(str(e))
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/maxent_species_distribution', methods=['POST'])
+def maxent_species_distribution():
+    """
+    Endpoint para ejecutar el modelo MaxEnt de distribución de especies usando Google Earth Engine.
+    Espera parámetros:
+      - aoi_asset: asset de área de interés (string)
+      - occurrences_asset: asset de puntos de presencia (string)
+      - variables: lista de variables bioclimáticas y físicas (opcional)
+      - betaMultiplier: float (opcional)
+      - features: lista de features (opcional)
+    """
+    try:
+        import ee
+        import json
+        # Leer parámetros del request
+        aoi_asset = request.form.get('aoi_asset')
+        occurrences_asset = request.form.get('occurrences_asset')
+        variables = request.form.getlist('variables[]') or [
+            'bio01','bio02','bio03','bio04','bio12','bio15','bio17','bio18','elevation','slope'
+        ]
+        betaMultiplier = float(request.form.get('betaMultiplier', 0.5))
+        features = request.form.getlist('features[]')
+        if not aoi_asset or not occurrences_asset:
+            return jsonify({'error': 'Faltan parámetros obligatorios'}), 400
+
+        # 1. Definir AOI y ocurrencias
+        aoi = ee.FeatureCollection(aoi_asset)
+        occurrences = ee.FeatureCollection(occurrences_asset)
+        occurrences = occurrences.map(lambda f: f.set('presence', 1))
+
+        # 2. Generar puntos de fondo
+        background = ee.FeatureCollection.randomPoints({
+            'region': aoi.geometry(),
+            'points': 1000,
+            'seed': 42
+        }).map(lambda f: f.set('presence', 0))
+        allPoints = occurrences.merge(background)
+
+        # 3. Cargar variables bioclimáticas y físicas
+        worldClim = ee.Image('WORLDCLIM/V1/BIO').clip(aoi)
+        srtm = ee.Image('USGS/SRTMGL1_003').clip(aoi)
+        elevation = srtm.select('elevation')
+        slope = ee.Terrain.slope(elevation)
+        predictors = ee.Image.cat([
+            *(worldClim.select(v) for v in variables if v.startswith('bio')),
+            elevation if 'elevation' in variables else None,
+            slope if 'slope' in variables else None
+        ]).clip(aoi)
+
+        # 4. Añadir variables a los puntos
+        validPoints = allPoints.map(lambda feature: feature.set(
+            predictors.reduceRegion(
+                reducer=ee.Reducer.mean(),
+                geometry=feature.geometry(),
+                scale=1000
+            )
+        )).filter(ee.Filter.notNull(predictors.bandNames()))
+
+        trainingData = predictors.sampleRegions({
+            'collection': validPoints,
+            'properties': ['presence'],
+            'scale': 1000
+        })
+
+        # 5. Entrenar el clasificador MaxEnt
+        classifier = ee.Classifier.amnhMaxent({
+            'linear': 'linear' in features,
+            'quadratic': 'quadratic' in features,
+            'product': 'product' in features,
+            'threshold': 'threshold' in features,
+            'hinge': 'hinge' in features,
+            'extrapolate': 'extrapolate' in features,
+            'autoFeature': False,
+            'betaMultiplier': betaMultiplier
+        }).train({
+            'features': trainingData,
+            'classProperty': 'presence',
+            'inputProperties': predictors.bandNames()
+        })
+
+        # 6. Clasificar y obtener predicción
+        prediction = predictors.classify(classifier)
+        variable_importance = classifier.explain().getInfo()
+
+        # 7. Generar visualización y exportación
+        vis_params = {'min': 0, 'max': 1, 'palette': ['blue', 'green', 'yellow', 'red']}
+        map_id = prediction.getMapId(vis_params)
+
+        # 8. Responder
+        return jsonify({
+            'success': True,
+            'map_url': map_id['tile_fetcher'].url_format,
+            'vis_params': vis_params,
+            'variable_importance': variable_importance
+        }), 200
+    except Exception as e:
+        print(str(e))
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=500, debug=True)

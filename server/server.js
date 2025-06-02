@@ -5,6 +5,7 @@ const app = express();
 const authRoutes = require('./routes/authRoutes');  // Ruta de autenticación
 const parcelRoutes = require('./routes/parcelRoutes'); // Ruta de parcelas
 const wmsLayerRoutes = require('./routes/wmsLayerRoutes'); // Ruta de capas WMS
+const maxentRoutes = require('./routes/maxentRoutes'); // Ruta de distribución de especies MaxEnt
 const cors = require('cors');
 
 // Middleware para permitir solicitudes desde otros dominios (CORS)
@@ -21,6 +22,9 @@ app.use('/api/parcelas', parcelRoutes);
 
 // Ruta de capas WMS
 app.use('/api/wms-layers', wmsLayerRoutes);
+
+// Ruta de distribución de especies MaxEnt
+app.use('/api/maxent', maxentRoutes);
 
 // Iniciar el servidor
 const PORT = process.env.PORT || 5000;

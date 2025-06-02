@@ -394,32 +394,82 @@ class Canvas extends React.Component {
         });
 
         this.displayTempLayerListener = emitter.addListener('displayTempLayer', e => {
-            this.removeTempLayer();
-
-            if (!this.state.map.hasImage('marker')) {
-                this.state.map.addImage('marker', marker, { pixelRatio: 3 });
+            // Eliminar capas anteriores si existen
+            if (this.state.map.getLayer('maxent-heatmap')) {
+                this.state.map.removeLayer('maxent-heatmap');
             }
-
+            if (this.state.map.getSource('maxent-heatmap')) {
+                this.state.map.removeSource('maxent-heatmap');
+            }
+            if (this.state.map.getLayer('maxent-occurrences')) {
+                this.state.map.removeLayer('maxent-occurrences');
+            }
+            if (this.state.map.getSource('maxent-occurrences')) {
+                this.state.map.removeSource('maxent-occurrences');
+            }
+            // Añadir heatmap primero
+            this.state.map.addSource('maxent-heatmap', {
+                type: 'geojson',
+                data: e.geometry
+            });
             this.state.map.addLayer({
-                id: 'custom-temp-point',
-                type: 'symbol',
-                source: {
-                    type: 'geojson',
-                    data: e.geometry
-                },
-                layout: {
-                    'icon-image': 'marker'
+                id: 'maxent-heatmap',
+                type: 'heatmap',
+                source: 'maxent-heatmap',
+                maxzoom: 12,
+                paint: {
+                    'heatmap-weight': [
+                        'interpolate', ['linear'], ['get', 'weight'],
+                        0, 0,
+                        1, 1
+                    ],
+                    'heatmap-intensity': [
+                        'interpolate', ['linear'], ['zoom'],
+                        0, 1,
+                        12, 3
+                    ],
+                    'heatmap-color': [
+                        'interpolate', ['linear'], ['heatmap-density'],
+                        0, 'rgba(33,102,172,0)',
+                        0.2, 'rgb(103,169,207)',
+                        0.4, 'rgb(209,229,240)',
+                        0.6, 'rgb(253,219,199)',
+                        0.8, 'rgb(239,138,98)',
+                        1, 'rgb(178,24,43)'
+                    ],
+                    'heatmap-radius': [
+                        'interpolate', ['linear'], ['zoom'],
+                        0, 8,
+                        12, 24
+                    ],
+                    'heatmap-opacity': [
+                        'interpolate', ['linear'], ['zoom'],
+                        7, 1,
+                        12, 0.6
+                    ]
                 }
             });
-
-            this.state.popup.setLngLat(e.geometry.geometry.coordinates).addTo(this.state.map);
-            emitter.emit('bindPopup', e);
-
-            this.state.map.flyTo({
-                center: e.geometry.geometry.coordinates,
-                zoom: 6,
-                bearing: 0
+            // Añadir capa de puntos encima del heatmap
+            this.state.map.addSource('maxent-occurrences', {
+                type: 'geojson',
+                data: e.geometry
             });
+            this.state.map.addLayer({
+                id: 'maxent-occurrences',
+                type: 'circle',
+                source: 'maxent-occurrences',
+                paint: {
+                    'circle-radius': 6,
+                    'circle-color': '#1976d2',
+                    'circle-stroke-width': 1,
+                    'circle-stroke-color': '#fff'
+                }
+            });
+            // Centrar el mapa SIEMPRE en toda España (incluyendo Canarias y Baleares)
+            this.state.map.fitBounds([
+                [-18.2, 27.6], // Suroeste (Islas Canarias)
+                [4.5, 43.9]    // Noreste (Pirineos, Baleares)
+            ], { padding: 40 });
         });
 
         this.setState({

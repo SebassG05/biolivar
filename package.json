@@ -105,7 +105,7 @@
     "resolve": "1.11.0",
     "sass-loader": "7.1.0",
     "semver": "6.1.1",
-    "shpjs": "^5.0.0",
+    "shpjs": "^3.4.3",
     "slick-carousel": "^1.8.1",
     "sortablejs": "^1.9.0",
     "style-loader": "0.23.1",

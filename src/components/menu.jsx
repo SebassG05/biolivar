@@ -169,39 +169,6 @@ class Menu extends React.Component {
                 }
 
             },
-
-            {
-                name: 'Modelo distribución de especies',
-                icon: <Icon>casino</Icon>, // icono aleatorio
-                color: "#74532", // brow
-
-                callback: () => {
-
-                    emitter.emit('closeAllController');
-
-                    emitter.emit('openMaxentController');
-
-                    this.handleClose();
-
-                }
-            },
-
-            {
-                name: 'Soil Organic Carbon Predictor',
-                icon: <Icon>science</Icon>,
-                color: "#795548", // brown
-
-                callback: () => {
-
-                    emitter.emit('closeAllController');
-
-                    emitter.emit('openSocController');
-
-                    this.handleClose();
-
-                }
-            },
-
             {
 
                 name: 'Configurador de Capas',

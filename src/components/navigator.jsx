@@ -130,23 +130,6 @@ class Navigator extends React.Component {
                         <img style={styles.logo} src="./static/assets/tepro_.png" alt="Tepro Logo" />
                         </a>
 
-                        &nbsp;
-                        &nbsp;
-                        &nbsp;
-                        &nbsp;
-
-                        <a style={styles.logoContainer} href="#">
-                        <img style={styles.logo} src="./static/assets/carbonolivar.png" alt="Carbono Olivar Logo" />
-                        </a>
-
-                        &nbsp;
-                        &nbsp;
-                        &nbsp;
-                        &nbsp;
-
-                        <a style={styles.logoContainer} href="#">
-                        <img style={styles.logo} src="./static/assets/indibiolivar.png" alt="Indibio Olivar Logo" />
-                        </a>
 
                         {/* Icons */}
 

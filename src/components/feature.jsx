@@ -35,10 +35,16 @@ class Feature extends React.Component {
 
     render() {
         return (
-            <div className="tap-target indigo accent-2" data-target="menu">
-                <div className="tap-target-content white-text">
-                    <h5>Bienvenido!</h5>
-                </div>
+            <div
+            className="tap-target indigo accent-2"
+            data-target="menu"
+            style={{
+                backgroundImage: 'linear-gradient(to top, rgb(218, 182, 137) 0%, #eacda3 100%)'
+            }}
+            >
+            <div className="tap-target-content white-text">
+                <h5>Bienvenido!</h5>
+            </div>
             </div>
         );
     }
